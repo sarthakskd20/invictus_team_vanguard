@@ -40,7 +40,7 @@ REM Check PostgreSQL (psql)
 where psql >nul 2>nul
 if %errorlevel% neq 0 (
     echo.
-    echo  [WARNING] PostgreSQL (psql) not found in PATH.
+    echo  [WARNING] PostgreSQL ^(psql^) not found in PATH.
     echo  Make sure PostgreSQL 15+ is installed and running.
     echo  You may need to add it to your PATH:
     echo    C:\Program Files\PostgreSQL\15\bin
