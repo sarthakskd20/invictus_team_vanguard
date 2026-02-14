@@ -1,5 +1,5 @@
 ---
-description: Parse PCB files (KiCad, Eagle, Altium, PDF) and extract the Bill of Materials (BOM) in JSON format.
+description: Parse PCB files (KiCad, Eagle, Altium, EasyEDA, PDF) and extract the Bill of Materials (BOM) in JSON format.
 ---
 
 # PCB Parser Skill

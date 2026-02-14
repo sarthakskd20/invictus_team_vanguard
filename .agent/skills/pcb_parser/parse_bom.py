@@ -47,7 +47,7 @@ def parse_pcb_file(filepath):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Parse PCB files and output JSON BOM.')
-    parser.add_argument('filepath', help='Path to the PCB file (KiCad, Eagle, Altium, etc.)')
+    parser.add_argument('filepath', help='Path to the PCB file (KiCad, Eagle, Altium, EasyEDA, PDF)')
     args = parser.parse_args()
 
     print(parse_pcb_file(args.filepath))

@@ -1,0 +1,26 @@
+{
+  "name": "iste_hackathon",
+  "version": "1.0.0",
+  "description": "A web application that parses PCB schematics from multiple CAD tools (KiCad, Eagle, Altium, EasyEDA) and extracts component information to generate Bills of Materials (BOM).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "setup-db": "node setup_db.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^17.3.1",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "multer": "^2.0.2",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.18.0",
+    "xml2js": "^0.6.2"
+  }
+}
