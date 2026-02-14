@@ -1,0 +1,38 @@
+(kicad_sch (version 20211123) (generator eeschema)
+
+  (symbol (lib_id "Device:R") (at 50.8 50.8 0)
+    (property "Reference" "R1" (id 0) (at 52.8 50.8 0))
+    (property "Value" "10k" (id 1) (at 52.8 52.8 0))
+    (property "Footprint" "Resistor_SMD:R_0805_2012Metric" (id 2) (at 50.8 50.8 0))
+    (property "PartNumber" "RC0805FR-0710KL" (id 3) (at 50.8 50.8 0))
+  )
+
+  (symbol (lib_id "Device:R") (at 60.8 50.8 0)
+    (property "Reference" "R2" (id 0) (at 62.8 50.8 0))
+    (property "Value" "10k" (id 1) (at 62.8 52.8 0))
+    (property "Footprint" "Resistor_SMD:R_0805_2012Metric" (id 2) (at 60.8 50.8 0))
+    (property "PartNumber" "RC0805FR-0710KL" (id 3) (at 60.8 50.8 0))
+  )
+
+  (symbol (lib_id "Device:C") (at 70.8 50.8 0)
+    (property "Reference" "C1" (id 0) (at 72.8 50.8 0))
+    (property "Value" "100nF" (id 1) (at 72.8 52.8 0))
+    (property "Footprint" "Capacitor_SMD:C_0603_1608Metric" (id 2) (at 70.8 50.8 0))
+    (property "PartNumber" "GRM188R71C104KA01D" (id 3) (at 70.8 50.8 0))
+  )
+
+  (symbol (lib_id "MCU_ST_STM32F4:STM32F401CCUx") (at 80.8 50.8 0)
+    (property "Reference" "U1" (id 0) (at 82.8 50.8 0))
+    (property "Value" "STM32F401CCUx" (id 1) (at 82.8 52.8 0))
+    (property "Footprint" "Package_DFN_QFN:QFN-48-1EP_7x7mm_P0.5mm_EP5.6x5.6mm" (id 2) (at 80.8 50.8 0))
+    (property "PartNumber" "STM32F401CCU6" (id 3) (at 80.8 50.8 0))
+  )
+
+  (symbol (lib_id "Device:LED") (at 90.8 50.8 0)
+    (property "Reference" "D1" (id 0) (at 92.8 50.8 0))
+    (property "Value" "RED" (id 1) (at 92.8 52.8 0))
+    (property "Footprint" "LED_SMD:LED_0805_2012Metric" (id 2) (at 90.8 50.8 0))
+    (property "PartNumber" "LTST-C170KRKT" (id 3) (at 90.8 50.8 0))
+  )
+
+)
