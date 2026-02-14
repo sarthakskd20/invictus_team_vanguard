@@ -3,6 +3,7 @@ const ExcelJS = require('exceljs');
 const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 
 // GET all components
 const getAllComponents = async (req, res, next) => {
@@ -321,6 +322,179 @@ const getCategories = async (req, res, next) => {
     }
 };
 
+// POST import schematic (Parse & Preview only)
+const importSchematic = async (req, res, next) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded.' });
+    }
+
+    const filepath = req.file.path;
+    const scriptPath = path.join(__dirname, '../scripts/parse_pcb.py');
+
+    // Spawn Python process
+    const pythonProcess = spawn('python', [scriptPath, filepath]);
+
+    let dataString = '';
+    let errorString = '';
+
+    pythonProcess.on('error', (err) => {
+        console.error('Failed to start Python process:', err);
+        if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+        return res.status(500).json({ error: 'Failed to execute parser script. Is Python installed and in PATH?', details: err.message });
+    });
+
+    pythonProcess.stdout.on('data', (data) => {
+        dataString += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+        errorString += data.toString();
+        // Don't log basic info messages as errors
+        if (!data.toString().includes('[INFO]')) {
+            console.error(`Python Stderr: ${data}`);
+        }
+    });
+
+    pythonProcess.on('close', async (code) => {
+        if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+
+        if (code !== 0) {
+            return res.status(500).json({
+                error: 'Failed to parse schematic file.',
+                details: errorString
+            });
+        }
+
+        try {
+            const result = JSON.parse(dataString);
+
+            if (!result.success) {
+                return res.status(400).json({ error: 'Parsing failed', details: result });
+            }
+
+            // Process BOM items for Preview
+            const bom = result.bom;
+            const previewComponents = [];
+
+            for (const item of bom) {
+                // Determine Part Number
+                let partNumber = item.part_number;
+                let compName = item.value || item.description || 'Unknown Component';
+
+                if (!partNumber || partNumber === 'N/A') {
+                    // Heuristic
+                    if (compName && compName.length > 3 && /^[A-Z0-9-]+$/.test(compName)) {
+                        partNumber = compName;
+                    } else {
+                        // Still include in preview but mark as 'invalid_pn' or similar?
+                        // Or just skip for now as per previous logic
+                        continue;
+                    }
+                }
+
+                // Check existence
+                const existing = await pool.query('SELECT component_id, current_stock, component_name, manufacturer, footprint, description FROM components WHERE part_number = $1', [partNumber]);
+
+                if (existing.rows.length > 0) {
+                    const curr = existing.rows[0];
+                    previewComponents.push({
+                        part_number: partNumber,
+                        component_name: compName,
+                        category: item.category || 'Uncategorized',
+                        manufacturer: item.manufacturer || '',
+                        footprint: item.footprint || '',
+                        description: item.description || '',
+                        status: 'existing',
+                        current_db_data: curr,
+                        monthly_required_quantity: 0
+                    });
+                } else {
+                    previewComponents.push({
+                        part_number: partNumber,
+                        component_name: compName,
+                        category: 'Uncategorized',
+                        manufacturer: item.manufacturer || '',
+                        footprint: item.footprint || '',
+                        description: item.description || '',
+                        status: 'new',
+                        current_db_data: null,
+                        monthly_required_quantity: 0
+                    });
+                }
+            }
+
+            res.json({
+                message: 'Schematic parsed successfully.',
+                preview: previewComponents,
+                total_found: previewComponents.length
+            });
+
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: 'Failed to process parsed data.', details: e.message });
+        }
+    });
+};
+
+// POST batch upsert components (Confirm Import)
+const batchUpsertComponents = async (req, res, next) => {
+    const { components } = req.body; // Array of component objects
+    if (!components || !Array.isArray(components)) {
+        return res.status(400).json({ error: 'Invalid data format. Expected array of components in "components" field.' });
+    }
+
+    let added = 0;
+    let updated = 0;
+
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        for (const comp of components) {
+            const existing = await client.query('SELECT component_id FROM components WHERE part_number = $1', [comp.part_number]);
+
+            // Use provided category or default
+            const category = comp.category || 'Uncategorized';
+
+            if (existing.rows.length > 0) {
+                await client.query(
+                    `UPDATE components SET
+                    component_name = COALESCE(NULLIF($1, 'N/A'), component_name),
+                    description = COALESCE(NULLIF($2, 'N/A'), description),
+                    footprint = COALESCE(NULLIF($3, 'N/A'), footprint),
+                    manufacturer = COALESCE(NULLIF($4, 'N/A'), manufacturer),
+                    category = COALESCE(NULLIF($6, 'Uncategorized'), category),
+                    updated_at = CURRENT_TIMESTAMP
+                    WHERE part_number = $5`,
+                    [comp.component_name, comp.description, comp.footprint, comp.manufacturer, comp.part_number, category]
+                );
+                updated++;
+            } else {
+                await client.query(
+                    `INSERT INTO components (component_name, part_number, current_stock, unit_price, description, manufacturer, footprint, category, monthly_required_quantity)
+                    VALUES ($1, $2, 0, 0, $3, $4, $5, $6, $7)`,
+                    [comp.component_name, comp.part_number, comp.description, comp.manufacturer, comp.footprint, category, comp.monthly_required_quantity || 0]
+                );
+                added++;
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({
+            success: true,
+            message: `Import confirmed. Added ${added}, Updated ${updated} components.`,
+            added,
+            updated
+        });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        next(err);
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
     getAllComponents,
     getComponentById,
@@ -329,5 +503,7 @@ module.exports = {
     deleteComponent,
     importComponents,
     exportComponents,
-    getCategories
+    getCategories,
+    importSchematic,
+    batchUpsertComponents
 };

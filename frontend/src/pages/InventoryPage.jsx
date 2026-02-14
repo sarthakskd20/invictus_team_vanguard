@@ -18,6 +18,7 @@ export default function InventoryPage() {
     const [success, setSuccess] = useState('');
     const [page, setPage] = useState(1);
     const fileInputRef = useRef(null);
+    const schematicInputRef = useRef(null);
     const perPage = 15;
 
     const emptyForm = {
@@ -26,6 +27,12 @@ export default function InventoryPage() {
         manufacturer: '', footprint: '', category: ''
     };
     const [formData, setFormData] = useState(emptyForm);
+
+    // Schematic Preview State
+    const [showPreview, setShowPreview] = useState(false);
+    const [previewData, setPreviewData] = useState([]);
+    const [previewSummary, setPreviewSummary] = useState({ total: 0, new: 0, existing: 0 });
+    const [isSubmittingImport, setIsSubmittingImport] = useState(false);
 
     useEffect(() => { loadData(); }, []);
     useEffect(() => { filterComponents(); }, [search, categoryFilter, components]);
@@ -112,21 +119,55 @@ export default function InventoryPage() {
         }
     };
 
-    const handleImport = async (e) => {
+    const handleImport = async (e, type = 'excel') => {
         const file = e.target.files[0];
         if (!file) return;
         const formData = new FormData();
         formData.append('file', file);
+
+        // Reset input
+        e.target.value = '';
+
         try {
             setLoading(true);
-            const res = await componentAPI.import(formData);
-            setSuccess(res.data.message);
-            loadData();
+            if (type === 'excel') {
+                const res = await componentAPI.import(formData);
+                setSuccess(res.data.message);
+                loadData();
+            } else {
+                const res = await componentAPI.importSchematic(formData);
+                const { preview } = res.data;
+
+                // Calculate stats
+                const newCount = preview.filter(p => p.status === 'new').length;
+                const existCount = preview.filter(p => p.status === 'existing').length;
+
+                setPreviewData(preview);
+                setPreviewSummary({ total: preview.length, new: newCount, existing: existCount });
+                setShowPreview(true);
+            }
         } catch (err) {
             setError(err.response?.data?.error || 'Import failed.');
+            if (err.response?.data?.details) {
+                console.error('Import Details:', err.response.data.details);
+            }
         } finally {
             setLoading(false);
-            e.target.value = '';
+        }
+    };
+
+    const confirmSchematicImport = async () => {
+        setIsSubmittingImport(true);
+        try {
+            const res = await componentAPI.batchUpsertComponents(previewData);
+            setSuccess(res.data.message);
+            setShowPreview(false);
+            setPreviewData([]);
+            loadData();
+        } catch (err) {
+            setError(err.response?.data?.error || 'Batch import failed.');
+        } finally {
+            setIsSubmittingImport(false);
         }
     };
 
@@ -163,9 +204,14 @@ export default function InventoryPage() {
                     <p className="page__subtitle">{components.length} components tracked</p>
                 </div>
                 <div className="page__actions">
-                    <input type="file" ref={fileInputRef} onChange={handleImport} accept=".xlsx,.xls,.csv" hidden />
+                    <input type="file" ref={fileInputRef} onChange={(e) => handleImport(e, 'excel')} accept=".xlsx,.xls,.csv" hidden />
+                    <input type="file" ref={schematicInputRef} onChange={(e) => handleImport(e, 'schematic')} accept=".kicad_sch,.sch,.schdoc,.pdf,.json" hidden />
+
                     <button className="btn btn--outline" onClick={() => fileInputRef.current?.click()}>
-                        <Upload size={16} /> Import
+                        <Upload size={16} /> Import Excel
+                    </button>
+                    <button className="btn btn--outline" onClick={() => schematicInputRef.current?.click()}>
+                        <Upload size={16} /> Import Schematic
                     </button>
                     <button className="btn btn--outline" onClick={handleExport}>
                         <Download size={16} /> Export
@@ -307,6 +353,62 @@ export default function InventoryPage() {
                                 <button type="submit" className="btn btn--primary">{editItem ? 'Save Changes' : 'Add Component'}</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Schematic Preview Modal */}
+            {showPreview && (
+                <div className="modal-overlay">
+                    <div className="modal modal--lg">
+                        <div className="modal__header">
+                            <h2>Import Preview</h2>
+                            <button className="icon-btn" onClick={() => setShowPreview(false)}><X size={18} /></button>
+                        </div>
+                        <div className="modal__content">
+                            <div className="stats-summary" style={{ display: 'flex', gap: '2rem', marginBottom: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                                <div><strong>Total Found:</strong> {previewSummary.total}</div>
+                                <div style={{ color: '#4ade80' }}><strong>New:</strong> {previewSummary.new}</div>
+                                <div style={{ color: '#60a5fa' }}><strong>Existing:</strong> {previewSummary.existing}</div>
+                            </div>
+
+                            <div className="table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Status</th>
+                                            <th>Part Number</th>
+                                            <th>Name</th>
+                                            <th>Category</th>
+                                            <th>Match</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {previewData.map((item, idx) => (
+                                            <tr key={idx}>
+                                                <td>
+                                                    <span className={`badge ${item.status === 'new' ? 'badge--success' : 'badge--info'}`}>
+                                                        {item.status === 'new' ? 'NEW' : 'EXISTS'}
+                                                    </span>
+                                                </td>
+                                                <td className="td--mono">{item.part_number}</td>
+                                                <td>{item.component_name}</td>
+                                                <td>{item.category}</td>
+                                                <td style={{ fontSize: '0.85rem', color: '#888' }}>
+                                                    {item.status === 'existing' ? 'Matches DB record' : 'Will be created'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div className="modal__actions">
+                            <button className="btn btn--outline" onClick={() => setShowPreview(false)} disabled={isSubmittingImport}>Cancel</button>
+                            <button className="btn btn--primary" onClick={confirmSchematicImport} disabled={isSubmittingImport}>
+                                {isSubmittingImport ? 'Importing...' : 'Confirm Import'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

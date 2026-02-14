@@ -50,6 +50,28 @@ if %errorlevel% neq 0 (
     echo    psql:    v%PG_VER% [OK]
 )
 
+REM Check Python
+where python >nul 2>nul
+if %errorlevel% neq 0 (
+    echo.
+    echo  [WARNING] Python is NOT installed.
+    echo  PCB Schematic Import feature will NOT work.
+    echo  Please install Python 3.8+ from https://python.org
+) else (
+    for /f "tokens=*" %%i in ('python --version') do set PY_VER=%%i
+    echo    Python:  %PY_VER% [OK]
+    
+    REM Install Python dependencies
+    echo.
+    echo  [1.5/5] Installing Python dependencies...
+    pip install -r backend\requirements.txt >nul 2>nul
+    if %errorlevel% neq 0 (
+         echo    [WARNING] Failed to install Python dependencies.
+    ) else (
+         echo    Python dependencies installed.
+    )
+)
+
 echo.
 echo  All core dependencies verified.
 echo.

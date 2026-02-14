@@ -47,7 +47,11 @@ export const componentAPI = {
         headers: { 'Content-Type': 'multipart/form-data' }
     }),
     export: () => api.get('/components/export', { responseType: 'blob' }),
-    getCategories: () => api.get('/components/categories')
+    getCategories: () => api.get('/components/categories'),
+    importSchematic: (formData) => api.post('/components/import-schematic', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+    batchUpsertComponents: (components) => api.post('/components/batch-upsert', { components })
 };
 
 // PCB Types

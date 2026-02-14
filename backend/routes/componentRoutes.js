@@ -10,7 +10,9 @@ const {
     deleteComponent,
     importComponents,
     exportComponents,
-    getCategories
+    getCategories,
+    importSchematic,
+    batchUpsertComponents
 } = require('../controllers/componentController');
 
 router.get('/', authenticateToken, getAllComponents);
@@ -19,6 +21,8 @@ router.get('/export', authenticateToken, exportComponents);
 router.get('/:id', authenticateToken, getComponentById);
 router.post('/', authenticateToken, createComponent);
 router.post('/import', authenticateToken, upload.single('file'), importComponents);
+router.post('/import-schematic', authenticateToken, upload.single('file'), importSchematic);
+router.post('/batch-upsert', authenticateToken, batchUpsertComponents);
 router.put('/:id', authenticateToken, updateComponent);
 router.delete('/:id', authenticateToken, deleteComponent);
 
