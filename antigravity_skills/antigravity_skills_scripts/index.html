@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCB Component Parser Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function PCBParserDashboard() {
+            const [file, setFile] = useState(null);
+            const [loading, setLoading] = useState(false);
+            const [result, setResult] = useState(null);
+            const [error, setError] = useState(null);
+            const [dragActive, setDragActive] = useState(false);
+
+            const API_URL = 'http://localhost:5000/api';
+
+            const handleDrag = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.type === "dragenter" || e.type === "dragover") {
+                    setDragActive(true);
+                } else if (e.type === "dragleave") {
+                    setDragActive(false);
+                }
+            };
+
+            const handleDrop = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragActive(false);
+                
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    setFile(e.dataTransfer.files[0]);
+                }
+            };
+
+            const handleFileChange = (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    setFile(e.target.files[0]);
+                }
+            };
+
+            const handleUpload = async () => {
+                if (!file) return;
+
+                setLoading(true);
+                setError(null);
+                setResult(null);
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch(`${API_URL}/upload`, {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        setResult(data);
+                    } else {
+                        setError(data.error || 'Upload failed');
+                    }
+                } catch (err) {
+                    setError('Failed to connect to server. Make sure the backend is running.');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const downloadFile = (filename) => {
+                window.open(`${API_URL}/download/${filename}`, '_blank');
+            };
+
+            const getFileTypeIcon = (fileType) => {
+                const icons = {
+                    'kicad': '🔷',
+                    'eagle': '🦅',
+                    'altium': '⚡',
+                    'easyeda': '🎨',
+                    'pdf': '📕'
+                };
+                return icons[fileType] || '📄';
+            };
+
+            const getFileTypeName = (fileType) => {
+                const names = {
+                    'kicad': 'KiCad',
+                    'eagle': 'Eagle',
+                    'altium': 'Altium',
+                    'easyeda': 'EasyEDA',
+                    'pdf': 'PDF'
+                };
+                return names[fileType] || fileType;
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+                    <div className="max-w-7xl mx-auto">
+                        {/* Header */}
+                        <div className="text-center mb-8">
+                            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                                🔌 PCB Component Parser
+                            </h1>
+                            <p className="text-gray-600">
+                                Upload your PCB schematic and extract all components automatically
+                            </p>
+                            <div className="flex justify-center gap-4 mt-4 text-sm text-gray-500">
+                                <span className="bg-white px-3 py-1 rounded-full">KiCad</span>
+                                <span className="bg-white px-3 py-1 rounded-full">Eagle</span>
+                                <span className="bg-white px-3 py-1 rounded-full">Altium</span>
+                                <span className="bg-white px-3 py-1 rounded-full">EasyEDA</span>
+                                <span className="bg-white px-3 py-1 rounded-full">PDF</span>
+                            </div>
+                        </div>
+
+                        {/* Upload Section */}
+                        <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
+                            <div
+                                className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+                                    dragActive
+                                        ? 'border-blue-500 bg-blue-50'
+                                        : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                                onDragEnter={handleDrag}
+                                onDragLeave={handleDrag}
+                                onDragOver={handleDrag}
+                                onDrop={handleDrop}
+                            >
+                                <div className="text-6xl mb-4">📤</div>
+                                <h3 className="text-xl font-semibold mb-2">
+                                    {file ? file.name : 'Drop your PCB file here'}
+                                </h3>
+                                <p className="text-gray-500 mb-4">
+                                    or click to browse
+                                </p>
+                                <input
+                                    type="file"
+                                    onChange={handleFileChange}
+                                    accept=".kicad_sch,.sch,.schdoc,.json,.pdf"
+                                    className="hidden"
+                                    id="fileInput"
+                                />
+                                <label
+                                    htmlFor="fileInput"
+                                    className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg cursor-pointer hover:bg-blue-700 transition-colors"
+                                >
+                                    Browse Files
+                                </label>
+                            </div>
+
+                            {file && (
+                                <div className="mt-6 flex justify-center">
+                                    <button
+                                        onClick={handleUpload}
+                                        disabled={loading}
+                                        className={`px-8 py-3 rounded-lg font-semibold text-white transition-colors ${
+                                            loading
+                                                ? 'bg-gray-400 cursor-not-allowed'
+                                                : 'bg-green-600 hover:bg-green-700'
+                                        }`}
+                                    >
+                                        {loading ? 'Parsing...' : 'Parse Components'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {error && (
+                                <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                                    ❌ {error}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Results Section */}
+                        {result && (
+                            <div className="space-y-6">
+                                {/* Summary Cards */}
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div className="bg-white rounded-lg shadow p-6">
+                                        <div className="text-3xl mb-2">{getFileTypeIcon(result.file_type)}</div>
+                                        <div className="text-sm text-gray-600">File Type</div>
+                                        <div className="text-xl font-bold">{getFileTypeName(result.file_type)}</div>
+                                    </div>
+                                    <div className="bg-white rounded-lg shadow p-6">
+                                        <div className="text-3xl mb-2">📦</div>
+                                        <div className="text-sm text-gray-600">Total Components</div>
+                                        <div className="text-xl font-bold">{result.total_components}</div>
+                                    </div>
+                                    <div className="bg-white rounded-lg shadow p-6">
+                                        <div className="text-3xl mb-2">🔢</div>
+                                        <div className="text-sm text-gray-600">Unique Parts</div>
+                                        <div className="text-xl font-bold">{result.unique_parts}</div>
+                                    </div>
+                                    <div className="bg-white rounded-lg shadow p-6">
+                                        <div className="text-3xl mb-2">💾</div>
+                                        <div className="text-sm text-gray-600">Export</div>
+                                        <div className="flex gap-2 mt-2">
+                                            <button
+                                                onClick={() => downloadFile(result.csv_file)}
+                                                className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200"
+                                            >
+                                                CSV
+                                            </button>
+                                            <button
+                                                onClick={() => downloadFile(result.excel_file)}
+                                                className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200"
+                                            >
+                                                Excel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* BOM Table */}
+                                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                                    <div className="px-6 py-4 bg-gray-50 border-b">
+                                        <h2 className="text-xl font-bold">Bill of Materials (BOM)</h2>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead className="bg-gray-100">
+                                                <tr>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Designators</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Qty</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Value</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Footprint</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Part Number</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Description</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-200">
+                                                {result.bom.map((item, index) => (
+                                                    <tr key={index} className="hover:bg-gray-50">
+                                                        <td className="px-6 py-4 text-sm font-mono text-blue-600">{item.designators}</td>
+                                                        <td className="px-6 py-4 text-sm font-semibold">{item.quantity}</td>
+                                                        <td className="px-6 py-4 text-sm">{item.value}</td>
+                                                        <td className="px-6 py-4 text-sm text-gray-600">{item.footprint}</td>
+                                                        <td className="px-6 py-4 text-sm font-mono text-gray-700">{item.part_number}</td>
+                                                        <td className="px-6 py-4 text-sm text-gray-600">{item.description}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {/* Component Details */}
+                                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                                    <div className="px-6 py-4 bg-gray-50 border-b">
+                                        <h2 className="text-xl font-bold">All Components</h2>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead className="bg-gray-100">
+                                                <tr>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Reference</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Value</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Footprint</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Part Number</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Description</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-200">
+                                                {result.components.map((comp, index) => (
+                                                    <tr key={index} className="hover:bg-gray-50">
+                                                        <td className="px-6 py-4 text-sm font-mono font-bold text-blue-600">{comp.reference}</td>
+                                                        <td className="px-6 py-4 text-sm">{comp.value}</td>
+                                                        <td className="px-6 py-4 text-sm text-gray-600">{comp.footprint || '-'}</td>
+                                                        <td className="px-6 py-4 text-sm font-mono text-gray-700">{comp.part_number || '-'}</td>
+                                                        <td className="px-6 py-4 text-sm text-gray-600">{comp.description || '-'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<PCBParserDashboard />, document.getElementById('root'));
+    </script>
+</body>
+</html>
