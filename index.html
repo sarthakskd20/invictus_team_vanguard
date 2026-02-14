@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,12 +9,20 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
     </style>
 </head>
-<body class="bg-gray-50">
+
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -25,8 +34,58 @@
             const [result, setResult] = useState(null);
             const [error, setError] = useState(null);
             const [dragActive, setDragActive] = useState(false);
+            const [darkMode, setDarkMode] = useState(false);
+            const [step, setStep] = useState(1);
+
+            useEffect(() => {
+                if (darkMode) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }, [darkMode]);
+
+            // Inventory State
+            const [inventoryFile, setInventoryFile] = useState(null);
+            const [inventoryLoading, setInventoryLoading] = useState(false);
+            const [inventoryMsg, setInventoryMsg] = useState(null);
+            const [deductLoading, setDeductLoading] = useState(false);
+            const [deductResult, setDeductResult] = useState(null);
+
+            // Inventory List State
+            const [inventoryList, setInventoryList] = useState([]);
+            const [loadingInventory, setLoadingInventory] = useState(false);
 
             const API_URL = 'http://localhost:5000/api';
+
+            useEffect(() => {
+                fetchInventory();
+            }, []);
+
+            const fetchInventory = async () => {
+                setLoadingInventory(true);
+                try {
+                    const response = await fetch(`${API_URL}/inventory`);
+                    const data = await response.json();
+                    setInventoryList(data);
+                } catch (err) {
+                    console.error('Failed to fetch inventory', err);
+                } finally {
+                    setLoadingInventory(false);
+                }
+            };
+
+            const exportInventory = async (type) => {
+                try {
+                    const response = await fetch(`${API_URL}/inventory/export/${type}`);
+                    const data = await response.json();
+                    if (data.success) {
+                        window.open(`${API_URL}/download/${data.file}`, '_blank');
+                    }
+                } catch (err) {
+                    alert('Export failed');
+                }
+            };
 
             const handleDrag = (e) => {
                 e.preventDefault();
@@ -42,7 +101,7 @@
                 e.preventDefault();
                 e.stopPropagation();
                 setDragActive(false);
-                
+
                 if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                     setFile(e.dataTransfer.files[0]);
                 }
@@ -72,8 +131,9 @@
 
                     const data = await response.json();
 
-                    if (response.ok) {
+                    if (data.success) {
                         setResult(data);
+                        setStep(3); // Advance to deduction step
                     } else {
                         setError(data.error || 'Upload failed');
                     }
@@ -86,6 +146,79 @@
 
             const downloadFile = (filename) => {
                 window.open(`${API_URL}/download/${filename}`, '_blank');
+            };
+
+            const handleInventoryChange = (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    setInventoryFile(e.target.files[0]);
+                    setInventoryMsg(null);
+                }
+            };
+
+            const handleInventoryUpload = async () => {
+                if (!inventoryFile) return;
+                setInventoryLoading(true);
+                const formData = new FormData();
+                formData.append('file', inventoryFile);
+
+                try {
+                    const response = await fetch(`${API_URL}/inventory`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        setInventoryMsg({ type: 'success', text: `Updated ${data.count} items!` });
+                        fetchInventory();
+                        setTimeout(() => setStep(2), 1000); // Auto-advance
+                    } else {
+                        setInventoryMsg({ type: 'error', text: data.error || 'Upload failed' });
+                    }
+                } catch (err) {
+                    setInventoryMsg({ type: 'error', text: 'Failed to connect' });
+                } finally {
+                    setInventoryLoading(false);
+                }
+            };
+
+            const handleDeduct = async () => {
+                if (!result || !result.bom) return;
+                setDeductLoading(true);
+                setDeductResult(null);
+
+                try {
+                    const response = await fetch(`${API_URL}/deduct`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ bom: result.bom })
+                    });
+                    const data = await response.json();
+                    setDeductResult(data);
+                    if (data.success) fetchInventory(); // Refresh list
+                } catch (err) {
+                    setDeductResult({ error: 'Failed to deduct stock' });
+                } finally {
+                    setDeductLoading(false);
+                }
+            };
+
+            const exportBOM = async (type) => {
+                if (!result || !result.bom) return;
+                try {
+                    const response = await fetch(`${API_URL}/bom/export/${type}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ bom: result.bom })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        window.location.href = `${API_URL}/download/${data.file}`;
+                    } else {
+                        alert('BOM Export failed');
+                    }
+                } catch (err) {
+                    console.error('BOM Export error:', err);
+                }
             };
 
             const getFileTypeIcon = (fileType) => {
@@ -110,189 +243,297 @@
                 return names[fileType] || fileType;
             };
 
+
             return (
-                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+                <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-200 font-sans text-gray-900 dark:text-gray-100">
                     <div className="max-w-7xl mx-auto">
                         {/* Header */}
-                        <div className="text-center mb-8">
-                            <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                                🔌 PCB Component Parser
+                        <div className="text-center mb-12 relative">
+                            <button
+                                onClick={() => setDarkMode(!darkMode)}
+                                className="absolute right-0 top-0 p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                            >
+                                {darkMode ? '☀️' : '🌙'}
+                            </button>
+                            <h1 className="text-4xl font-extrabold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                                🔌 PCB Component Wizard
                             </h1>
-                            <p className="text-gray-600">
-                                Upload your PCB schematic and extract all components automatically
+                            <p className="text-gray-600 dark:text-gray-400">
+                                Effortless Inventory Management for Electronics
                             </p>
-                            <div className="flex justify-center gap-4 mt-4 text-sm text-gray-500">
-                                <span className="bg-white px-3 py-1 rounded-full">KiCad</span>
-                                <span className="bg-white px-3 py-1 rounded-full">Eagle</span>
-                                <span className="bg-white px-3 py-1 rounded-full">Altium</span>
-                                <span className="bg-white px-3 py-1 rounded-full">EasyEDA</span>
-                                <span className="bg-white px-3 py-1 rounded-full">PDF</span>
+                        </div>
+
+                        {/* Wizard Steps Indicator */}
+                        <div className="flex justify-center mb-12">
+                            <div className="flex items-center space-x-4">
+                                <div className={`flex flex-col items-center ${step >= 1 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border-2 ${step >= 1 ? 'border-blue-600 bg-blue-100 dark:bg-blue-900/30' : 'border-gray-300'}`}>1</div>
+                                    <span className="text-sm mt-1 font-medium">Inventory</span>
+                                </div>
+                                <div className={`w-20 h-1 bg-gray-300 dark:bg-gray-700 ${step >= 2 ? 'bg-blue-600' : ''}`}></div>
+                                <div className={`flex flex-col items-center ${step >= 2 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border-2 ${step >= 2 ? 'border-blue-600 bg-blue-100 dark:bg-blue-900/30' : 'border-gray-300'}`}>2</div>
+                                    <span className="text-sm mt-1 font-medium">PCB Parse</span>
+                                </div>
+                                <div className={`w-20 h-1 bg-gray-300 dark:bg-gray-700 ${step >= 3 ? 'bg-blue-600' : ''}`}></div>
+                                <div className={`flex flex-col items-center ${step >= 3 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border-2 ${step >= 3 ? 'border-blue-600 bg-blue-100 dark:bg-blue-900/30' : 'border-gray-300'}`}>3</div>
+                                    <span className="text-sm mt-1 font-medium">Deduct</span>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Upload Section */}
-                        <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-                            <div
-                                className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-                                    dragActive
-                                        ? 'border-blue-500 bg-blue-50'
-                                        : 'border-gray-300 hover:border-gray-400'
-                                }`}
-                                onDragEnter={handleDrag}
-                                onDragLeave={handleDrag}
-                                onDragOver={handleDrag}
-                                onDrop={handleDrop}
-                            >
-                                <div className="text-6xl mb-4">📤</div>
-                                <h3 className="text-xl font-semibold mb-2">
-                                    {file ? file.name : 'Drop your PCB file here'}
-                                </h3>
-                                <p className="text-gray-500 mb-4">
-                                    or click to browse
+                        {/* Step 1: Inventory Upload */}
+                        {step === 1 && (
+                            <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-xl p-8 transition-all">
+                                <h2 className="text-2xl font-bold mb-6 flex items-center">
+                                    <span className="mr-3 text-3xl">🏭</span> Upload Current Inventory
+                                </h2>
+                                <p className="mb-6 text-gray-600 dark:text-gray-300">
+                                    Start by uploading your current stock sheet. We'll standardise it for you.
+                                    <br /><span className="text-sm text-gray-500">(Supports .csv, .xlsx)</span>
                                 </p>
-                                <input
-                                    type="file"
-                                    onChange={handleFileChange}
-                                    accept=".kicad_sch,.sch,.schdoc,.json,.pdf"
-                                    className="hidden"
-                                    id="fileInput"
-                                />
-                                <label
-                                    htmlFor="fileInput"
-                                    className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg cursor-pointer hover:bg-blue-700 transition-colors"
-                                >
-                                    Browse Files
-                                </label>
-                            </div>
 
-                            {file && (
-                                <div className="mt-6 flex justify-center">
+                                <div className="border-3 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-10 text-center bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                                    onClick={() => document.getElementById('inventoryInput').click()}>
+                                    <div className="text-5xl mb-4">📂</div>
+                                    <h3 className="text-lg font-semibold mb-2">
+                                        {inventoryFile ? inventoryFile.name : 'Click to Upload Inventory'}
+                                    </h3>
+                                    <input
+                                        type="file"
+                                        onChange={handleInventoryChange}
+                                        accept=".csv,.xlsx,.xls"
+                                        className="hidden"
+                                        id="inventoryInput"
+                                    />
+                                </div>
+
+                                {inventoryMsg && (
+                                    <div className={`mt-6 px-4 py-3 rounded-lg flex items-center ${inventoryMsg.type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800'}`}>
+                                        <span className="mr-2 text-xl">{inventoryMsg.type === 'success' ? '✅' : '❌'}</span>
+                                        {inventoryMsg.text}
+                                    </div>
+                                )}
+
+                                <div className="mt-8 flex justify-end">
                                     <button
-                                        onClick={handleUpload}
-                                        disabled={loading}
-                                        className={`px-8 py-3 rounded-lg font-semibold text-white transition-colors ${
-                                            loading
-                                                ? 'bg-gray-400 cursor-not-allowed'
-                                                : 'bg-green-600 hover:bg-green-700'
-                                        }`}
+                                        onClick={handleInventoryUpload}
+                                        disabled={inventoryLoading || !inventoryFile}
+                                        className={`px-8 py-3 rounded-lg font-bold text-white transition-transform transform active:scale-95 ${inventoryLoading || !inventoryFile ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl'
+                                            }`}
                                     >
-                                        {loading ? 'Parsing...' : 'Parse Components'}
+                                        {inventoryLoading ? 'Processing...' : 'Upload & Next ➡'}
+                                    </button>
+                                    <button onClick={() => setStep(2)} className="ml-4 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline text-sm">
+                                        Skip to PCB Parsing
                                     </button>
                                 </div>
-                            )}
 
-                            {error && (
-                                <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                                    ❌ {error}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Results Section */}
-                        {result && (
-                            <div className="space-y-6">
-                                {/* Summary Cards */}
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="bg-white rounded-lg shadow p-6">
-                                        <div className="text-3xl mb-2">{getFileTypeIcon(result.file_type)}</div>
-                                        <div className="text-sm text-gray-600">File Type</div>
-                                        <div className="text-xl font-bold">{getFileTypeName(result.file_type)}</div>
-                                    </div>
-                                    <div className="bg-white rounded-lg shadow p-6">
-                                        <div className="text-3xl mb-2">📦</div>
-                                        <div className="text-sm text-gray-600">Total Components</div>
-                                        <div className="text-xl font-bold">{result.total_components}</div>
-                                    </div>
-                                    <div className="bg-white rounded-lg shadow p-6">
-                                        <div className="text-3xl mb-2">🔢</div>
-                                        <div className="text-sm text-gray-600">Unique Parts</div>
-                                        <div className="text-xl font-bold">{result.unique_parts}</div>
-                                    </div>
-                                    <div className="bg-white rounded-lg shadow p-6">
-                                        <div className="text-3xl mb-2">💾</div>
-                                        <div className="text-sm text-gray-600">Export</div>
-                                        <div className="flex gap-2 mt-2">
-                                            <button
-                                                onClick={() => downloadFile(result.csv_file)}
-                                                className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200"
-                                            >
-                                                CSV
-                                            </button>
-                                            <button
-                                                onClick={() => downloadFile(result.excel_file)}
-                                                className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200"
-                                            >
-                                                Excel
-                                            </button>
+                                {/* Setup Inventory Table Preview */}
+                                {inventoryList.length > 0 && (
+                                    <div className="mt-8 pt-8 border-t dark:border-gray-700">
+                                        <h3 className="font-bold mb-4">Current Stock Preview ({inventoryList.length} items)</h3>
+                                        <div className="h-48 overflow-y-auto bg-gray-100 dark:bg-gray-900 rounded-lg p-2 text-xs font-mono">
+                                            {inventoryList.slice(0, 50).map((i, idx) => (
+                                                <div key={idx} className="flex justify-between py-1 border-b dark:border-gray-800 last:border-0">
+                                                    <span>{i.part_number}</span>
+                                                    <span className={i.stock_quantity > 0 ? 'text-green-600' : 'text-red-500'}>{i.stock_quantity}</span>
+                                                </div>
+                                            ))}
+                                            {inventoryList.length > 50 && <div className="text-center py-2 text-gray-500">...and more</div>}
                                         </div>
                                     </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Step 2: PCB Upload */}
+                        {step === 2 && (
+                            <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-xl p-8 transition-all">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-bold flex items-center">
+                                        <span className="mr-3 text-3xl">🧩</span> Parse PCB Schematic
+                                    </h2>
+                                    <button onClick={() => setStep(1)} className="text-gray-500 hover:text-blue-600">⬅ Back</button>
                                 </div>
 
-                                {/* BOM Table */}
-                                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                                    <div className="px-6 py-4 bg-gray-50 border-b">
-                                        <h2 className="text-xl font-bold">Bill of Materials (BOM)</h2>
-                                    </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full">
-                                            <thead className="bg-gray-100">
-                                                <tr>
-                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Designators</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Qty</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Value</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Footprint</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Part Number</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Description</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-gray-200">
-                                                {result.bom.map((item, index) => (
-                                                    <tr key={index} className="hover:bg-gray-50">
-                                                        <td className="px-6 py-4 text-sm font-mono text-blue-600">{item.designators}</td>
-                                                        <td className="px-6 py-4 text-sm font-semibold">{item.quantity}</td>
-                                                        <td className="px-6 py-4 text-sm">{item.value}</td>
-                                                        <td className="px-6 py-4 text-sm text-gray-600">{item.footprint}</td>
-                                                        <td className="px-6 py-4 text-sm font-mono text-gray-700">{item.part_number}</td>
-                                                        <td className="px-6 py-4 text-sm text-gray-600">{item.description}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                <div
+                                    className={`border-3 border-dashed rounded-xl p-12 text-center transition-all cursor-pointer ${dragActive
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-105'
+                                        : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
+                                        }`}
+                                    onDragEnter={handleDrag}
+                                    onDragLeave={handleDrag}
+                                    onDragOver={handleDrag}
+                                    onDrop={handleDrop}
+                                    onClick={() => document.getElementById('fileInput').click()}
+                                >
+                                    <div className="text-6xl mb-4 text-blue-500">📥</div>
+                                    <h3 className="text-xl font-bold mb-2 text-gray-800 dark:text-white">
+                                        {file ? file.name : 'Drag & Drop PCB File Here'}
+                                    </h3>
+                                    <p className="text-gray-500 text-sm">Supports KiCad, Eagle, Altium, EasyEDA, PDF</p>
+                                    <input
+                                        type="file"
+                                        onChange={handleFileChange}
+                                        accept=".kicad_sch,.sch,.schdoc,.json,.pdf"
+                                        className="hidden"
+                                        id="fileInput"
+                                    />
                                 </div>
 
-                                {/* Component Details */}
-                                <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                                    <div className="px-6 py-4 bg-gray-50 border-b">
-                                        <h2 className="text-xl font-bold">All Components</h2>
+                                {loading && (
+                                    <div className="mt-8 text-center">
+                                        <div className="inline-block animate-spin text-4xl mb-2">⚙️</div>
+                                        <p>Analyzing Schematics...</p>
                                     </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full">
-                                            <thead className="bg-gray-100">
-                                                <tr>
-                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Reference</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Value</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Footprint</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Part Number</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Description</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-gray-200">
-                                                {result.components.map((comp, index) => (
-                                                    <tr key={index} className="hover:bg-gray-50">
-                                                        <td className="px-6 py-4 text-sm font-mono font-bold text-blue-600">{comp.reference}</td>
-                                                        <td className="px-6 py-4 text-sm">{comp.value}</td>
-                                                        <td className="px-6 py-4 text-sm text-gray-600">{comp.footprint || '-'}</td>
-                                                        <td className="px-6 py-4 text-sm font-mono text-gray-700">{comp.part_number || '-'}</td>
-                                                        <td className="px-6 py-4 text-sm text-gray-600">{comp.description || '-'}</td>
+                                )}
+
+                                {error && (
+                                    <div className="mt-4 bg-red-100 text-red-700 px-4 py-3 rounded-lg">❌ {error}</div>
+                                )}
+
+                                {result && (
+                                    <div className="mt-8 animate-fade-in-up">
+                                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6 flex justify-between items-center">
+                                            <div>
+                                                <h3 className="font-bold text-green-800 dark:text-green-300">Parsing Successful!</h3>
+                                                <p className="text-sm text-green-700 dark:text-green-400">Found {result.unique_parts} unique components.</p>
+                                            </div>
+                                            <button
+                                                onClick={() => setStep(3)}
+                                                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition-transform hover:scale-105"
+                                            >
+                                                Next: Deduct Stock ➡
+                                            </button>
+                                        </div>
+
+                                        {/* Mini BOM Preview */}
+                                        <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                                            <table className="w-full text-sm text-left">
+                                                <thead className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                                    <tr>
+                                                        <th className="px-4 py-2">Part</th>
+                                                        <th className="px-4 py-2">Qty</th>
+                                                        <th className="px-4 py-2">Value</th>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                                    {result.bom.slice(0, 5).map((row, i) => (
+                                                        <tr key={i}>
+                                                            <td className="px-4 py-2 font-mono">{row.part_number}</td>
+                                                            <td className="px-4 py-2 font-bold">{row.quantity}</td>
+                                                            <td className="px-4 py-2 text-gray-500">{row.value}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
+                                )}
+
+                                {!result && !loading && (
+                                    <div className="mt-8 text-center">
+                                        <button
+                                            onClick={handleUpload}
+                                            disabled={!file}
+                                            className={`px-10 py-3 rounded-lg font-bold text-white text-lg transition-all ${!file ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-xl'}`}
+                                        >
+                                            Parse Schematic
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Step 3: Deduction & Results */}
+                        {step === 3 && result && (
+                            <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
+                                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-8">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h2 className="text-2xl font-bold flex items-center">
+                                            <span className="mr-3 text-3xl">📉</span> Stock Deduction
+                                        </h2>
+                                        <button onClick={() => setStep(2)} className="text-gray-500 hover:text-blue-600">⬅ Back to PCB</button>
+                                    </div>
+
+                                    {!deductResult ? (
+                                        <div className="text-center py-12">
+                                            <div className="text-6xl mb-4">🤔</div>
+                                            <h3 className="text-xl font-bold mb-2">Ready to reconcile inventory?</h3>
+                                            <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                                                We will match your PCB components against the uploaded inventory via fuzzy logic (e.g. matching "10k" to "Resistor 10k").
+                                            </p>
+                                            <button
+                                                onClick={handleDeduct}
+                                                disabled={deductLoading}
+                                                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xl px-12 py-4 rounded-full font-bold shadow-2xl transition-transform transform hover:scale-105"
+                                            >
+                                                {deductLoading ? 'Calculating...' : '🚀 Execute Deduction'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-6">
+                                            <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg text-center">
+                                                <div className="text-4xl mb-2">🎉</div>
+                                                <h3 className="text-2xl font-bold text-blue-900 dark:text-blue-200">Deduction Complete!</h3>
+                                                <p className="text-blue-800 dark:text-blue-300">Your inventory has been updated.</p>
+                                            </div>
+
+                                            <div className="flex justify-center flex-wrap gap-4">
+                                                <button onClick={() => exportInventory('csv')} className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white px-6 py-3 rounded-lg font-semibold flex items-center transition-all hover:shadow-md">
+                                                    📄 Download Updated Inventory (CSV)
+                                                </button>
+                                                <button onClick={() => exportInventory('excel')} className="bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-800 dark:text-green-300 px-6 py-3 rounded-lg font-semibold flex items-center transition-all hover:shadow-md">
+                                                    📊 Download Updated Inventory (Excel)
+                                                </button>
+                                                <div className="w-full flex justify-center gap-4 mt-2">
+                                                    <button onClick={() => exportBOM('csv')} className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium">
+                                                        💾 Download PCB Items (CSV)
+                                                    </button>
+                                                    <button onClick={() => exportBOM('excel')} className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium">
+                                                        📈 Download PCB Items (Excel)
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Report Table */}
+                                            <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                                                <div className="bg-gray-100 dark:bg-gray-800 px-6 py-3 font-bold border-b dark:border-gray-700">Detailed Report</div>
+                                                <table className="w-full text-sm">
+                                                    <thead className="bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400">
+                                                        <tr>
+                                                            <th className="px-6 py-3 text-left">PCB Part</th>
+                                                            <th className="px-6 py-3 text-left">Status</th>
+                                                            <th className="px-6 py-3 text-left">Matched Inventory Part</th>
+                                                            <th className="px-6 py-3 text-left">Remaining Stock</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                                                        {deductResult.report.map((row, idx) => (
+                                                            <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                                                <td className="px-6 py-4 font-mono">{row.original_bom_part || row.part}</td>
+                                                                <td className="px-6 py-4">
+                                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${row.status === 'Deducted' ? 'bg-green-100 text-green-800' :
+                                                                        row.status.includes('Added') ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                                                                        }`}>
+                                                                        {row.status}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-6 py-4 font-mono text-gray-600 dark:text-gray-400">{row.part}</td>
+                                                                <td className="px-6 py-4 font-bold">{row.remaining !== undefined ? row.remaining : '-'}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
+
                     </div>
                 </div>
             );
@@ -301,4 +542,5 @@
         ReactDOM.render(<PCBParserDashboard />, document.getElementById('root'));
     </script>
 </body>
+
 </html>
