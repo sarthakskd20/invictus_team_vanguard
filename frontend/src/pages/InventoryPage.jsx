@@ -44,24 +44,7 @@ export default function InventoryPage() {
     const [isAddingToInventory, setIsAddingToInventory] = useState(false);
 
     useEffect(() => { loadData(); }, []);
-    useEffect(() => { filterComponents(); }, [search, categoryFilter, components]);
-
-    const loadData = async () => {
-        try {
-            const [compRes, catRes] = await Promise.all([
-                componentAPI.getAll(),
-                componentAPI.getCategories()
-            ]);
-            setComponents(compRes.data);
-            setCategories(catRes.data);
-        } catch (err) {
-            setError('Failed to load inventory data.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const filterComponents = () => {
+    useEffect(() => {
         let result = components;
         if (search) {
             const s = search.toLowerCase();
@@ -76,6 +59,21 @@ export default function InventoryPage() {
         }
         setFiltered(result);
         setPage(1);
+    }, [search, categoryFilter, components]);
+
+    const loadData = async () => {
+        try {
+            const [compRes, catRes] = await Promise.all([
+                componentAPI.getAll(),
+                componentAPI.getCategories()
+            ]);
+            setComponents(compRes.data);
+            setCategories(catRes.data);
+        } catch {
+            setError('Failed to load inventory data.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const paginatedData = filtered.slice((page - 1) * perPage, page * perPage);
@@ -100,6 +98,7 @@ export default function InventoryPage() {
             setError(err.response?.data?.error || 'Operation failed.');
         }
     };
+
 
     const handleEdit = (comp) => {
         setEditItem(comp);
@@ -244,7 +243,7 @@ export default function InventoryPage() {
             link.click();
             window.URL.revokeObjectURL(url);
             setSuccess('Inventory exported to Excel.');
-        } catch (err) {
+        } catch {
             setError('Export failed.');
         }
     };

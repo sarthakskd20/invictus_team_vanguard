@@ -23,7 +23,7 @@ export default function PCBTypesPage() {
             const [pcbRes, compRes] = await Promise.all([pcbAPI.getAll(), componentAPI.getAll()]);
             setPcbs(pcbRes.data);
             setComponents(compRes.data);
-        } catch (err) { setError('Failed to load data.'); }
+        } catch { setError('Failed to load data.'); }
         finally { setLoading(false); }
     };
 
@@ -33,7 +33,7 @@ export default function PCBTypesPage() {
             const res = await pcbAPI.getBom(pcbId);
             setExpandedBom(res.data);
             setExpandedId(pcbId);
-        } catch (err) { setError('Failed to load BOM.'); }
+        } catch { setError('Failed to load BOM.'); }
     };
 
     const handleSubmit = async (e) => {
@@ -65,7 +65,7 @@ export default function PCBTypesPage() {
                 bom: res.data.bom.map(b => ({ component_id: b.component_id, quantity_per_unit: b.quantity_per_unit }))
             });
             setShowForm(true);
-        } catch (err) { setError('Failed to load PCB details.'); }
+        } catch { setError('Failed to load PCB details.'); }
     };
 
     const handleDelete = async (id, name) => {

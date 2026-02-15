@@ -1,20 +1,15 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem('token'));
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
+    const [user, setUser] = useState(() => {
         const storedUser = localStorage.getItem('user');
-        if (storedUser && token) {
-            setUser(JSON.parse(storedUser));
-        }
-        setLoading(false);
-    }, [token]);
+        return storedUser ? JSON.parse(storedUser) : null;
+    });
+    const [token, setToken] = useState(localStorage.getItem('token'));
+    const loading = false;
 
     const login = async (username, password) => {
         const response = await authAPI.login({ username, password });
@@ -52,6 +47,7 @@ export function AuthProvider({ children }) {
     );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
     const context = useContext(AuthContext);
     if (!context) {

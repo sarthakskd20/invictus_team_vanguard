@@ -1,11 +1,12 @@
 import React, { useState, createContext, useContext } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion"; // eslint-disable-line no-unused-vars
 import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
 /* ── Context ─────────────────────────────────────────── */
 const SidebarContext = createContext(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useSidebar = () => {
     const context = useContext(SidebarContext);
     if (!context) {

@@ -6,7 +6,7 @@ import {
     ShoppingCart, FileBarChart, LogOut
 } from 'lucide-react';
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import { Link } from 'react-router-dom';
 
 /* ── Logo (expanded) ─────────────────────────────────── */

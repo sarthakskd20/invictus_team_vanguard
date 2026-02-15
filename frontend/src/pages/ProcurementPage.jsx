@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { procurementAPI } from '../services/api';
 import { ShoppingCart, CheckCircle, Clock, X, AlertTriangle } from 'lucide-react';
 
@@ -9,15 +9,15 @@ export default function ProcurementPage() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    useEffect(() => { loadTriggers(); }, [filter]);
-
-    const loadTriggers = async () => {
+    const loadTriggers = useCallback(async () => {
         try {
             const res = await procurementAPI.getAll(filter || undefined);
             setTriggers(res.data);
-        } catch (err) { setError('Failed to load triggers.'); }
+        } catch { setError('Failed to load triggers.'); }
         finally { setLoading(false); }
-    };
+    }, [filter]);
+
+    useEffect(() => { loadTriggers(); }, [loadTriggers]);
 
     const handleAcknowledge = async (id) => {
         try {

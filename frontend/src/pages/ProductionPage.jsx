@@ -33,7 +33,7 @@ export default function ProductionPage() {
             ]);
             setPcbs(pcbRes.data);
             setHistory(histRes.data);
-        } catch (err) { setError('Failed to load data.'); }
+        } catch { setError('Failed to load data.'); }
         finally { setLoading(false); }
     };
 
@@ -41,7 +41,7 @@ export default function ProductionPage() {
         try {
             const res = await pcbAPI.getBom(pcbId);
             setBomPreview(res.data);
-        } catch (err) { setBomPreview([]); }
+        } catch { setBomPreview([]); }
     };
 
     const handleSubmit = async (e) => {
@@ -95,13 +95,10 @@ export default function ProductionPage() {
             const res = await productionAPI.getDetail(entryId);
             setEntryDetail(res.data);
             setExpandedEntry(entryId);
-        } catch (err) { setError('Failed to load entry details.'); }
+        } catch { setError('Failed to load entry details.'); }
     };
 
-    const checkStockSufficiency = (item) => {
-        const needed = item.quantity_per_unit * quantity;
-        return item.current_stock >= needed;
-    };
+
 
     // Download helper
     const downloadBlob = (blob, filename) => {
@@ -117,21 +114,21 @@ export default function ProductionPage() {
         try {
             const res = await reportAPI.exportBOM(selectedPcb, quantity);
             downloadBlob(new Blob([res.data]), `BOM_x${quantity}.xlsx`);
-        } catch (err) { setError('Failed to export BOM.'); }
+        } catch { setError('Failed to export BOM.'); }
     };
 
     const handleExportShortage = async () => {
         try {
             const res = await reportAPI.exportShortageReport(selectedPcb, quantity);
             downloadBlob(new Blob([res.data]), `Shortage_x${quantity}.xlsx`);
-        } catch (err) { setError('Failed to export shortage report.'); }
+        } catch { setError('Failed to export shortage report.'); }
     };
 
     const handleExportProcurement = async () => {
         try {
             const res = await reportAPI.exportProcurementList(selectedPcb, quantity);
             downloadBlob(new Blob([res.data]), `Procurement_x${quantity}.xlsx`);
-        } catch (err) { setError('Failed to export procurement list.'); }
+        } catch { setError('Failed to export procurement list.'); }
     };
 
     // Compute impact summary

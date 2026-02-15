@@ -17,7 +17,6 @@ export default function DashboardPage() {
     const { user } = useAuth();
     const [summary, setSummary] = useState(null);
     const [lowStock, setLowStock] = useState([]);
-    const [topConsumed, setTopConsumed] = useState([]);
     const [categoryData, setCategoryData] = useState([]);
     const [consumptionTrend, setConsumptionTrend] = useState([]);
     const [productionByPCB, setProductionByPCB] = useState([]);
@@ -29,17 +28,15 @@ export default function DashboardPage() {
 
     const loadDashboard = async () => {
         try {
-            const [sumRes, lowRes, topRes, catRes, trendRes, pcbRes] = await Promise.all([
+            const [sumRes, lowRes, catRes, trendRes, pcbRes] = await Promise.all([
                 dashboardAPI.getSummary(),
                 dashboardAPI.getLowStock(),
-                dashboardAPI.getTopConsumed(8),
                 dashboardAPI.getStockByCategory(),
                 dashboardAPI.getConsumptionTrend(14),
                 dashboardAPI.getProductionByPCB()
             ]);
             setSummary(sumRes.data);
             setLowStock(lowRes.data);
-            setTopConsumed(topRes.data);
             setCategoryData(catRes.data);
             setConsumptionTrend(trendRes.data);
             setProductionByPCB(pcbRes.data);

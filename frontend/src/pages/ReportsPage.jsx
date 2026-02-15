@@ -26,7 +26,7 @@ export default function ReportsPage() {
         try {
             const res = await reportAPI.getTransactionHistory(componentId);
             setTransactions(res.data);
-        } catch (err) { setError('Failed to load transaction history.'); }
+        } catch { setError('Failed to load transaction history.'); }
         finally { setLoading(false); }
     };
 
@@ -44,7 +44,7 @@ export default function ReportsPage() {
             const res = await reportAPI.exportInventory();
             downloadFile(new Blob([res.data]), `inventory_snapshot_${Date.now()}.xlsx`);
             setSuccess('Inventory snapshot exported.');
-        } catch (err) { setError('Export failed.'); }
+        } catch { setError('Export failed.'); }
     };
 
     const handleExportConsumption = async () => {
@@ -55,7 +55,7 @@ export default function ReportsPage() {
             const res = await reportAPI.exportConsumption(params);
             downloadFile(new Blob([res.data]), `consumption_report_${Date.now()}.xlsx`);
             setSuccess('Consumption report exported.');
-        } catch (err) { setError('Export failed.'); }
+        } catch { setError('Export failed.'); }
     };
 
     const getTypeColor = (type) => {
