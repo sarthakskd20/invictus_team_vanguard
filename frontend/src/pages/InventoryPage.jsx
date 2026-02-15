@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { componentAPI } from '../services/api';
+import { componentAPI, missingComponentsAPI } from '../services/api';
 import {
     Plus, Search, Upload, Download, Edit, Trash2, X,
-    ChevronLeft, ChevronRight, Filter
+    ChevronLeft, ChevronRight, Filter, AlertTriangle, CheckCircle, XCircle, Package
 } from 'lucide-react';
 
 export default function InventoryPage() {
@@ -33,6 +33,15 @@ export default function InventoryPage() {
     const [previewData, setPreviewData] = useState([]);
     const [previewSummary, setPreviewSummary] = useState({ total: 0, new: 0, existing: 0 });
     const [isSubmittingImport, setIsSubmittingImport] = useState(false);
+
+    // Missing Components Reconciliation State
+    const [reconciliationData, setReconciliationData] = useState(null);
+    const [reconciliationAnalytics, setReconciliationAnalytics] = useState(null);
+    const [buildQty, setBuildQty] = useState(1);
+    const [isReconciling, setIsReconciling] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [isExportingReport, setIsExportingReport] = useState(false);
+    const [isAddingToInventory, setIsAddingToInventory] = useState(false);
 
     useEffect(() => { loadData(); }, []);
     useEffect(() => { filterComponents(); }, [search, categoryFilter, components]);
@@ -163,11 +172,65 @@ export default function InventoryPage() {
             setSuccess(res.data.message);
             setShowPreview(false);
             setPreviewData([]);
+            setReconciliationData(null);
+            setReconciliationAnalytics(null);
             loadData();
         } catch (err) {
             setError(err.response?.data?.error || 'Batch import failed.');
         } finally {
             setIsSubmittingImport(false);
+        }
+    };
+
+    // ─── Reconciliation handlers ───
+    const handleReconcile = async () => {
+        setIsReconciling(true);
+        try {
+            const res = await missingComponentsAPI.reconcile(previewData, buildQty);
+            setReconciliationData(res.data.reconciliation);
+            setReconciliationAnalytics(res.data.analytics);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Reconciliation failed.');
+        } finally {
+            setIsReconciling(false);
+        }
+    };
+
+    const handleExportMissingReport = async () => {
+        if (!reconciliationData) return;
+        setIsExportingReport(true);
+        try {
+            const res = await missingComponentsAPI.exportReport(reconciliationData, reconciliationAnalytics);
+            const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Missing_Components_Report_${Date.now()}.xlsx`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Export failed.');
+        } finally {
+            setIsExportingReport(false);
+        }
+    };
+
+    const handleAddMissingToInventory = async () => {
+        if (!reconciliationData) return;
+        const missing = reconciliationData.filter(r => r.status === 'missing');
+        if (missing.length === 0) {
+            setSuccess('No missing components to add.');
+            return;
+        }
+        setIsAddingToInventory(true);
+        try {
+            const res = await missingComponentsAPI.addToInventory(missing);
+            setSuccess(res.data.message);
+            loadData();
+        } catch (err) {
+            setError(err.response?.data?.error || 'Failed to add missing components.');
+        } finally {
+            setIsAddingToInventory(false);
         }
     };
 
@@ -205,7 +268,7 @@ export default function InventoryPage() {
                 </div>
                 <div className="page__actions">
                     <input type="file" ref={fileInputRef} onChange={(e) => handleImport(e, 'excel')} accept=".xlsx,.xls,.csv" hidden />
-                    <input type="file" ref={schematicInputRef} onChange={(e) => handleImport(e, 'schematic')} accept=".kicad_sch,.sch,.schdoc,.pdf,.json" hidden />
+                    <input type="file" ref={schematicInputRef} onChange={(e) => handleImport(e, 'schematic')} accept=".kicad_sch,.sch,.schdoc,.pdf,.json,.gbr,.net,.asc,.brd,.xml,.cvg,.tgz" hidden />
 
                     <button className="btn btn--outline" onClick={() => fileInputRef.current?.click()}>
                         <Upload size={16} /> Import Excel
@@ -358,60 +421,256 @@ export default function InventoryPage() {
             )}
 
             {/* Schematic Preview Modal */}
-            {showPreview && (
-                <div className="modal-overlay">
-                    <div className="modal modal--lg">
-                        <div className="modal__header">
-                            <h2>Import Preview</h2>
-                            <button className="icon-btn" onClick={() => setShowPreview(false)}><X size={18} /></button>
-                        </div>
-                        <div className="modal__content">
-                            <div className="stats-summary" style={{ display: 'flex', gap: '2rem', marginBottom: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                                <div><strong>Total Found:</strong> {previewSummary.total}</div>
-                                <div style={{ color: '#4ade80' }}><strong>New:</strong> {previewSummary.new}</div>
-                                <div style={{ color: '#60a5fa' }}><strong>Existing:</strong> {previewSummary.existing}</div>
-                            </div>
+            {showPreview && (() => {
+                const uncategorizedCount = previewData.filter(p => !p.category || p.category === 'Uncategorized').length;
+                const parsedCategories = [...new Set(previewData.map(p => p.category).filter(c => c && c !== 'Uncategorized'))];
+                const allCategories = [...new Set([...categories, ...parsedCategories])].sort();
 
-                            <div className="table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                                <table className="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Status</th>
-                                            <th>Part Number</th>
-                                            <th>Name</th>
-                                            <th>Category</th>
-                                            <th>Match</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {previewData.map((item, idx) => (
-                                            <tr key={idx}>
-                                                <td>
-                                                    <span className={`badge ${item.status === 'new' ? 'badge--success' : 'badge--info'}`}>
-                                                        {item.status === 'new' ? 'NEW' : 'EXISTS'}
-                                                    </span>
-                                                </td>
-                                                <td className="td--mono">{item.part_number}</td>
-                                                <td>{item.component_name}</td>
-                                                <td>{item.category}</td>
-                                                <td style={{ fontSize: '0.85rem', color: '#888' }}>
-                                                    {item.status === 'existing' ? 'Matches DB record' : 'Will be created'}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                // Filter reconciliation data by status
+                const displayData = reconciliationData
+                    ? (statusFilter === 'all' ? reconciliationData : reconciliationData.filter(r => r.status === statusFilter))
+                    : previewData;
+                const isReconciled = !!reconciliationData;
+
+                return (
+                    <div className="modal-overlay">
+                        <div className="modal modal--lg">
+                            <div className="modal__header">
+                                <h2>{isReconciled ? '🔍 BOM Reconciliation' : 'Import Preview'}</h2>
+                                <button className="icon-btn" onClick={() => { setShowPreview(false); setReconciliationData(null); setReconciliationAnalytics(null); setStatusFilter('all'); }}><X size={18} /></button>
                             </div>
-                        </div>
-                        <div className="modal__actions">
-                            <button className="btn btn--outline" onClick={() => setShowPreview(false)} disabled={isSubmittingImport}>Cancel</button>
-                            <button className="btn btn--primary" onClick={confirmSchematicImport} disabled={isSubmittingImport}>
-                                {isSubmittingImport ? 'Importing...' : 'Confirm Import'}
-                            </button>
+                            <div className="modal__content">
+                                {/* Stats Summary */}
+                                <div className="stats-summary" style={{ display: 'flex', gap: '1.2rem', marginBottom: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                    {isReconciled && reconciliationAnalytics ? (
+                                        <>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                <CheckCircle size={16} style={{ color: '#4ade80' }} />
+                                                <strong style={{ color: '#4ade80' }}>Available: {reconciliationAnalytics.availableCount}</strong>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                <AlertTriangle size={16} style={{ color: '#f59e0b' }} />
+                                                <strong style={{ color: '#f59e0b' }}>Shortage: {reconciliationAnalytics.shortageCount}</strong>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                <XCircle size={16} style={{ color: '#ef4444' }} />
+                                                <strong style={{ color: '#ef4444' }}>Missing: {reconciliationAnalytics.missingCount}</strong>
+                                            </div>
+                                            <div style={{ marginLeft: 'auto', display: 'flex', gap: '1rem', fontSize: '0.85rem', color: '#aaa' }}>
+                                                <span>Coverage: <strong style={{ color: reconciliationAnalytics.bomCoveragePercent >= 80 ? '#4ade80' : reconciliationAnalytics.bomCoveragePercent >= 50 ? '#f59e0b' : '#ef4444' }}>{reconciliationAnalytics.bomCoveragePercent}%</strong></span>
+                                                <span>Readiness: <strong>{reconciliationAnalytics.buildReadinessScore}%</strong></span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div><strong>Total Found:</strong> {previewSummary.total}</div>
+                                            <div style={{ color: '#4ade80' }}><strong>New:</strong> {previewSummary.new}</div>
+                                            <div style={{ color: '#60a5fa' }}><strong>Existing:</strong> {previewSummary.existing}</div>
+                                            <div><strong>Total Qty:</strong> {previewData.reduce((sum, p) => sum + (p.quantity || 1), 0)}</div>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Build Qty + Reconcile controls */}
+                                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Build Qty:</label>
+                                        <input
+                                            type="number" min="1" value={buildQty}
+                                            onChange={e => setBuildQty(Math.max(1, parseInt(e.target.value) || 1))}
+                                            style={{ width: '70px', padding: '0.3rem 0.5rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: 'inherit', textAlign: 'center' }}
+                                        />
+                                    </div>
+                                    <button className="btn btn--primary" onClick={handleReconcile} disabled={isReconciling} style={{ fontSize: '0.85rem', padding: '0.4rem 1rem' }}>
+                                        {isReconciling ? 'Reconciling...' : '🔍 Reconcile with Inventory'}
+                                    </button>
+
+                                    {isReconciled && (
+                                        <>
+                                            <select
+                                                value={statusFilter}
+                                                onChange={e => setStatusFilter(e.target.value)}
+                                                style={{ padding: '0.35rem 0.6rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: 'inherit', fontSize: '0.85rem' }}
+                                            >
+                                                <option value="all">All Status</option>
+                                                <option value="available">✅ Available</option>
+                                                <option value="shortage">⚠️ Shortage</option>
+                                                <option value="missing">❌ Missing</option>
+                                            </select>
+                                        </>
+                                    )}
+                                </div>
+
+                                {uncategorizedCount > 0 && !isReconciled && (
+                                    <div style={{ padding: '0.7rem 1rem', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.85rem', color: '#f59e0b' }}>
+                                        ⚠️ {uncategorizedCount} component(s) are uncategorized. Use the dropdowns below to assign categories before confirming.
+                                    </div>
+                                )}
+
+                                {/* Data Table */}
+                                <div className="table-container" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                                    <table className="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Status</th>
+                                                <th>Part Number</th>
+                                                <th>Name</th>
+                                                <th>Qty</th>
+                                                {isReconciled && <th>Required</th>}
+                                                {isReconciled && <th>In Stock</th>}
+                                                {isReconciled && <th>Missing</th>}
+                                                <th>Category</th>
+                                                {isReconciled && <th>Confidence</th>}
+                                                {!isReconciled && <th>Match</th>}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {displayData.map((item, idx) => {
+                                                const isUncategorized = !isReconciled && (!item.category || item.category === 'Uncategorized');
+                                                // Row background color by status
+                                                let rowStyle = isUncategorized ? { background: 'rgba(245, 158, 11, 0.06)' } : {};
+                                                if (isReconciled) {
+                                                    if (item.status === 'missing') rowStyle = { background: 'rgba(239, 68, 68, 0.08)' };
+                                                    else if (item.status === 'shortage') rowStyle = { background: 'rgba(245, 158, 11, 0.08)' };
+                                                    else if (item.status === 'available') rowStyle = { background: 'rgba(74, 222, 128, 0.06)' };
+                                                }
+
+                                                return (
+                                                    <tr key={idx} style={rowStyle}>
+                                                        <td>
+                                                            {isReconciled ? (
+                                                                <span style={{
+                                                                    display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0.5rem',
+                                                                    borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
+                                                                    background: item.status === 'available' ? 'rgba(74,222,128,0.15)' : item.status === 'shortage' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                                                                    color: item.status === 'available' ? '#4ade80' : item.status === 'shortage' ? '#f59e0b' : '#ef4444'
+                                                                }}>
+                                                                    {item.status === 'available' ? <CheckCircle size={12} /> : item.status === 'shortage' ? <AlertTriangle size={12} /> : <XCircle size={12} />}
+                                                                    {item.status.toUpperCase()}
+                                                                </span>
+                                                            ) : (
+                                                                <span className={`badge ${item.status === 'new' ? 'badge--success' : 'badge--info'}`}>
+                                                                    {item.status === 'new' ? 'NEW' : 'EXISTS'}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="td--mono">{isReconciled ? (item.mpn || '—') : item.part_number}</td>
+                                                        <td>{isReconciled ? item.value : item.component_name}</td>
+                                                        <td style={{ textAlign: 'center', fontWeight: 600 }}>{isReconciled ? item.qtyPerPcb : (item.quantity || 1)}</td>
+                                                        {isReconciled && <td style={{ textAlign: 'center' }}>{item.totalRequired}</td>}
+                                                        {isReconciled && (
+                                                            <td style={{ textAlign: 'center', fontWeight: 600, color: item.stockAvailable > 0 ? '#4ade80' : '#888' }}>
+                                                                {item.stockAvailable}
+                                                            </td>
+                                                        )}
+                                                        {isReconciled && (
+                                                            <td style={{ textAlign: 'center', fontWeight: 700, color: item.missingQty > 0 ? '#ef4444' : '#4ade80' }}>
+                                                                {item.missingQty > 0 ? item.missingQty : '✓'}
+                                                            </td>
+                                                        )}
+                                                        <td>
+                                                            {isReconciled ? (
+                                                                <span style={{ fontSize: '0.85rem' }}>{item.suggestedCategory || item.componentType}</span>
+                                                            ) : (
+                                                                <select
+                                                                    value={item.category || 'Uncategorized'}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        if (val === '__custom__') {
+                                                                            const custom = prompt('Enter custom category:');
+                                                                            if (custom && custom.trim()) {
+                                                                                setPreviewData(prev => prev.map((p, i) => i === idx ? { ...p, category: custom.trim() } : p));
+                                                                            }
+                                                                        } else {
+                                                                            setPreviewData(prev => prev.map((p, i) => i === idx ? { ...p, category: val } : p));
+                                                                        }
+                                                                    }}
+                                                                    style={{
+                                                                        padding: '0.3rem 0.5rem', borderRadius: '6px',
+                                                                        border: isUncategorized ? '1.5px solid #f59e0b' : '1px solid rgba(255,255,255,0.15)',
+                                                                        background: 'rgba(255,255,255,0.05)', color: 'inherit', fontSize: '0.85rem', minWidth: '140px'
+                                                                    }}
+                                                                >
+                                                                    <option value="Uncategorized">Uncategorized</option>
+                                                                    {allCategories.map(cat => (
+                                                                        <option key={cat} value={cat}>{cat}</option>
+                                                                    ))}
+                                                                    <option value="__custom__">+ Custom...</option>
+                                                                </select>
+                                                            )}
+                                                        </td>
+                                                        {isReconciled && (
+                                                            <td style={{ fontSize: '0.8rem', color: item.matchConfidence >= 75 ? '#4ade80' : item.matchConfidence >= 50 ? '#f59e0b' : '#888' }}>
+                                                                {item.matchConfidence}%
+                                                            </td>
+                                                        )}
+                                                        {!isReconciled && (
+                                                            <td style={{ fontSize: '0.85rem', color: '#888' }}>
+                                                                {item.status === 'existing' ? 'Matches DB record' : 'Will be created'}
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Analytics / Readiness Bar (only after reconciliation) */}
+                                {isReconciled && reconciliationAnalytics && (
+                                    <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.6rem', fontSize: '0.85rem' }}>
+                                            <span>Build Readiness</span>
+                                            <span style={{ fontWeight: 700, color: reconciliationAnalytics.buildReadinessScore >= 80 ? '#4ade80' : reconciliationAnalytics.buildReadinessScore >= 50 ? '#f59e0b' : '#ef4444' }}>
+                                                {reconciliationAnalytics.buildReadinessScore}%
+                                            </span>
+                                        </div>
+                                        <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
+                                            <div style={{
+                                                height: '100%', borderRadius: '4px', transition: 'width 0.5s ease',
+                                                width: reconciliationAnalytics.buildReadinessScore + '%',
+                                                background: reconciliationAnalytics.buildReadinessScore >= 80 ? 'linear-gradient(90deg, #4ade80, #22c55e)' : reconciliationAnalytics.buildReadinessScore >= 50 ? 'linear-gradient(90deg, #f59e0b, #eab308)' : 'linear-gradient(90deg, #ef4444, #dc2626)'
+                                            }} />
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '2rem', marginTop: '0.8rem', fontSize: '0.8rem', color: '#aaa' }}>
+                                            <span>Total Required: <strong style={{ color: '#e2e8f0' }}>{reconciliationAnalytics.totalRequiredQty}</strong></span>
+                                            <span>Missing Qty: <strong style={{ color: '#ef4444' }}>{reconciliationAnalytics.totalMissingQty}</strong></span>
+                                            <span>Missing SKUs: <strong style={{ color: '#ef4444' }}>{reconciliationAnalytics.totalMissingSKUs}</strong></span>
+                                            {reconciliationAnalytics.estimatedProcurementCost > 0 && (
+                                                <span>Est. Cost: <strong style={{ color: '#60a5fa' }}>${reconciliationAnalytics.estimatedProcurementCost.toFixed(2)}</strong></span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal__actions" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+                                <button className="btn btn--outline" onClick={() => { setShowPreview(false); setReconciliationData(null); setReconciliationAnalytics(null); setStatusFilter('all'); }} disabled={isSubmittingImport}>Cancel</button>
+
+                                {isReconciled && reconciliationAnalytics && reconciliationAnalytics.missingCount > 0 && (
+                                    <>
+                                        <button className="btn btn--outline" onClick={handleExportMissingReport} disabled={isExportingReport} style={{ borderColor: '#ef4444', color: '#ef4444' }}>
+                                            <Download size={14} /> {isExportingReport ? 'Exporting...' : 'Export Missing Report'}
+                                        </button>
+                                        <button className="btn btn--outline" onClick={handleAddMissingToInventory} disabled={isAddingToInventory} style={{ borderColor: '#f59e0b', color: '#f59e0b' }}>
+                                            <Package size={14} /> {isAddingToInventory ? 'Adding...' : 'Add Missing to DB'}
+                                        </button>
+                                    </>
+                                )}
+
+                                {isReconciled && reconciliationAnalytics && reconciliationAnalytics.missingCount === 0 && reconciliationAnalytics.shortageCount > 0 && (
+                                    <button className="btn btn--outline" onClick={handleExportMissingReport} disabled={isExportingReport} style={{ borderColor: '#f59e0b', color: '#f59e0b' }}>
+                                        <Download size={14} /> {isExportingReport ? 'Exporting...' : 'Export Shortage Report'}
+                                    </button>
+                                )}
+
+                                <button className="btn btn--primary" onClick={confirmSchematicImport} disabled={isSubmittingImport}>
+                                    {isSubmittingImport ? 'Importing...' : 'Confirm Import'}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 }

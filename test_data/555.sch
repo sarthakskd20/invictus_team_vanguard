@@ -1,0 +1,296 @@
+EESchema Schematic File Version 4
+EELAYER 30 0
+EELAYER END
+$Descr USLetter 11000 8500
+encoding utf-8
+Sheet 1 1
+Title "555 Timer Project"
+Date "2019-12-11"
+Rev "Prototype 0"
+Comp ""
+Comment1 "Engineer: Craig Arno"
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L 555-rescue:TLC555-Timer U1
+U 1 1 5DEFF2D9
+P 7100 3650
+F 0 "U1" H 7200 4200 50  0000 C CNN
+F 1 "TLC555" H 7300 4100 50  0000 C CNN
+F 2 "Package_DIP:DIP-8_W7.62mm" H 7150 3400 50  0001 L CNN
+F 3 "http://www.ti.com/lit/ds/symlink/tlc555.pdf" H 7750 3100 50  0001 C CNN
+F 4 "X" H 7100 3650 50  0001 C CNN "Spice_Primitive"
+F 5 "555-Timer" H 7100 3650 50  0001 C CNN "Spice_Model"
+F 6 "Y" H 7100 3650 50  0001 C CNN "Spice_Netlist_Enabled"
+F 7 "555-Timer-1.cir" H 7100 3650 50  0001 C CNN "Spice_Lib_File"
+	1    7100 3650
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R_US R1
+U 1 1 5DF000BA
+P 5550 3600
+F 0 "R1" H 5618 3646 50  0000 L CNN
+F 1 "10K" H 5618 3555 50  0000 L CNN
+F 2 "Resistor_THT:R_Axial_DIN0411_L9.9mm_D3.6mm_P20.32mm_Horizontal" V 5590 3590 50  0001 C CNN
+F 3 "~" H 5550 3600 50  0001 C CNN
+	1    5550 3600
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R_US R3
+U 1 1 5DF008AF
+P 5250 2650
+F 0 "R3" H 5318 2696 50  0000 L CNN
+F 1 "100K" H 5318 2605 50  0000 L CNN
+F 2 "Resistor_THT:R_Axial_DIN0411_L9.9mm_D3.6mm_P20.32mm_Horizontal" V 5290 2640 50  0001 C CNN
+F 3 "~" H 5250 2650 50  0001 C CNN
+	1    5250 2650
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R_US R2
+U 1 1 5DF00EF6
+P 6000 3600
+F 0 "R2" H 6068 3646 50  0000 L CNN
+F 1 "10K" H 6068 3555 50  0000 L CNN
+F 2 "Resistor_THT:R_Axial_DIN0411_L9.9mm_D3.6mm_P20.32mm_Horizontal" V 6040 3590 50  0001 C CNN
+F 3 "~" H 6000 3600 50  0001 C CNN
+	1    6000 3600
+	1    0    0    -1  
+$EndComp
+$Comp
+L pspice:CAP C1
+U 1 1 5DF014AF
+P 5550 4100
+F 0 "C1" H 5728 4146 50  0000 L CNN
+F 1 "0.01uF" H 5728 4055 50  0000 L CNN
+F 2 "Capacitor_THT:C_Disc_D4.7mm_W2.5mm_P5.00mm" H 5550 4100 50  0001 C CNN
+F 3 "~" H 5550 4100 50  0001 C CNN
+	1    5550 4100
+	1    0    0    -1  
+$EndComp
+$Comp
+L pspice:CAP C2
+U 1 1 5DF026A9
+P 7650 4300
+F 0 "C2" H 7828 4346 50  0000 L CNN
+F 1 "0.01uF" H 7828 4255 50  0000 L CNN
+F 2 "Capacitor_THT:C_Disc_D4.7mm_W2.5mm_P5.00mm" H 7650 4300 50  0001 C CNN
+F 3 "~" H 7650 4300 50  0001 C CNN
+	1    7650 4300
+	1    0    0    -1  
+$EndComp
+$Comp
+L Transistor_BJT:2N3906 Q1
+U 1 1 5DF03541
+P 5450 3200
+F 0 "Q1" H 5640 3246 50  0000 L CNN
+F 1 "2N3906" H 5640 3155 50  0000 L CNN
+F 2 "Package_TO_SOT_THT:TO-92_Inline" H 5650 3125 50  0001 L CIN
+F 3 "https://www.fairchildsemi.com/datasheets/2N/2N3906.pdf" H 5450 3200 50  0001 L CNN
+F 4 "Q" H 5450 3200 50  0001 C CNN "Spice_Primitive"
+F 5 "2N3906" H 5450 3200 50  0001 C CNN "Spice_Model"
+F 6 "Y" H 5450 3200 50  0001 C CNN "Spice_Netlist_Enabled"
+F 7 "2N3906.mdl" H 5450 3200 50  0001 C CNN "Spice_Lib_File"
+	1    5450 3200
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:TestPoint_Probe TP3
+U 1 1 5DF054D7
+P 4700 3800
+F 0 "TP3" V 4990 3855 50  0000 C CNN
+F 1 "TestPoint_Probe" V 4899 3855 50  0000 C CNN
+F 2 "Connector_PinHeader_2.00mm:PinHeader_1x01_P2.00mm_Vertical" H 4900 3800 50  0001 C CNN
+F 3 "~" H 4900 3800 50  0001 C CNN
+	1    4700 3800
+	0    -1   -1   0   
+$EndComp
+$Comp
+L Connector:TestPoint_Probe TP4
+U 1 1 5DF05B6E
+P 8300 3650
+F 0 "TP4" H 8453 3751 50  0000 L CNN
+F 1 "TestPoint_Probe" H 8453 3660 50  0000 L CNN
+F 2 "Connector_PinHeader_2.00mm:PinHeader_1x01_P2.00mm_Vertical" H 8500 3650 50  0001 C CNN
+F 3 "~" H 8500 3650 50  0001 C CNN
+	1    8300 3650
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:TestPoint_Probe TP2
+U 1 1 5DF05EB3
+P 7100 2750
+F 0 "TP2" H 7253 2851 50  0000 L CNN
+F 1 "TestPoint_Probe" H 7253 2760 50  0000 L CNN
+F 2 "Connector_PinHeader_2.00mm:PinHeader_1x01_P2.00mm_Vertical" H 7300 2750 50  0001 C CNN
+F 3 "~" H 7300 2750 50  0001 C CNN
+	1    7100 2750
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:TestPoint_Probe TP1
+U 1 1 5DF060CD
+P 7100 4550
+F 0 "TP1" H 7300 4800 50  0000 R CNN
+F 1 "TestPoint_Probe" H 7300 4900 50  0000 R CNN
+F 2 "Connector_PinHeader_2.00mm:PinHeader_1x01_P2.00mm_Vertical" H 7300 4550 50  0001 C CNN
+F 3 "~" H 7300 4550 50  0001 C CNN
+	1    7100 4550
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	7100 2750 7100 2950
+Wire Wire Line
+	7600 3450 7600 2950
+Wire Wire Line
+	7600 2950 7100 2950
+Connection ~ 7100 2950
+Wire Wire Line
+	7100 2950 7100 3000
+Wire Wire Line
+	7650 4050 7650 3750
+Wire Wire Line
+	7650 3750 7600 3750
+Wire Wire Line
+	7100 3950 7100 4550
+Wire Wire Line
+	7100 4550 7650 4550
+Connection ~ 7100 4550
+$Comp
+L power:GND #PWR02
+U 1 1 5DF0DCC9
+P 7650 4650
+F 0 "#PWR02" H 7650 4400 50  0001 C CNN
+F 1 "GND" H 7655 4477 50  0000 C CNN
+F 2 "" H 7650 4650 50  0001 C CNN
+F 3 "" H 7650 4650 50  0001 C CNN
+	1    7650 4650
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	7650 4650 7650 4550
+Connection ~ 7650 4550
+Wire Wire Line
+	5550 3400 5550 3450
+Wire Wire Line
+	6600 3650 6600 3750
+Wire Wire Line
+	6600 3750 6000 3750
+Connection ~ 6600 3750
+Wire Wire Line
+	5550 3750 5550 3800
+Connection ~ 5550 3750
+$Comp
+L power:GND #PWR01
+U 1 1 5DF122B1
+P 5550 4450
+F 0 "#PWR01" H 5550 4200 50  0001 C CNN
+F 1 "GND" H 5555 4277 50  0000 C CNN
+F 2 "" H 5550 4450 50  0001 C CNN
+F 3 "" H 5550 4450 50  0001 C CNN
+	1    5550 4450
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5550 4350 5550 4450
+Wire Wire Line
+	5550 3000 7100 3000
+Connection ~ 7100 3000
+Wire Wire Line
+	7100 3000 7100 3250
+Connection ~ 6000 3750
+Wire Wire Line
+	6000 3750 5550 3750
+Wire Wire Line
+	6000 3450 6600 3450
+Wire Wire Line
+	5250 2800 5250 3200
+Wire Wire Line
+	5250 2500 5250 2350
+Wire Wire Line
+	8200 2350 8200 3650
+Wire Wire Line
+	4700 3800 5550 3800
+Connection ~ 5550 3800
+Wire Wire Line
+	5550 3800 5550 3850
+Text Label 6450 3000 0    50   ~ 0
+POWER
+$Comp
+L Simulation_SPICE:VPULSE V1
+U 1 1 5DF316FC
+P 2050 3300
+F 0 "V1" H 2180 3391 50  0000 L CNN
+F 1 "VPULSE" H 2180 3300 50  0000 L CNN
+F 2 "" H 2050 3300 50  0001 C CNN
+F 3 "~" H 2050 3300 50  0001 C CNN
+F 4 "Y" H 2050 3300 50  0001 L CNN "Spice_Netlist_Enabled"
+F 5 "V" H 2050 3300 50  0001 L CNN "Spice_Primitive"
+F 6 "pulse(5 15 750m 1m 2n 1.5 750m)" H 2180 3209 50  0000 L CNN "Spice_Model"
+	1    2050 3300
+	1    0    0    -1  
+$EndComp
+Wire Notes Line
+	1300 2050 3850 2050
+Wire Notes Line
+	3850 2050 3850 4200
+Wire Notes Line
+	3850 4200 1300 4200
+Wire Notes Line
+	1300 4200 1300 2050
+Text Notes 2050 2450 0    118  ~ 24
+SPICE Setup
+Text Label 2100 3100 0    50   ~ 0
+POWER
+Text Label 2050 3500 0    50   ~ 0
+GND
+Connection ~ 8200 3650
+Wire Wire Line
+	8200 3650 8300 3650
+Wire Wire Line
+	7600 3650 8200 3650
+Wire Wire Line
+	5250 2350 8200 2350
+Text Label 7850 3650 0    50   ~ 0
+OUTPUT
+Text Label 5000 3800 0    50   ~ 0
+WAVEFORM
+Wire Wire Line
+	2050 3100 2250 3100
+$Comp
+L power:GND #PWR0101
+U 1 1 5DF3CB2E
+P 2050 3550
+F 0 "#PWR0101" H 2050 3300 50  0001 C CNN
+F 1 "GND" H 2055 3377 50  0000 C CNN
+F 2 "" H 2050 3550 50  0001 C CNN
+F 3 "" H 2050 3550 50  0001 C CNN
+	1    2050 3550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2050 3550 2050 3500
+$Bitmap
+Pos 7600 6950
+Scale 1.000000
+Data
+89 50 4E 47 0D 0A 1A 0A 00 00 00 0D 49 48 44 52 00 00 02 FE 00 00 00 30 08 03 00 00 00 5E C6 8E 
+66 00 00 00 03 73 42 49 54 08 08 08 DB E1 4F E0 00 00 00 06 50 4C 54 45 FF FF FF 00 00 00 55 C2 
+D3 7E 00 00 01 37 49 44 41 54 78 9C ED DC 31 8E C3 30 0C 45 C1 F8 FE 97 DE 2E 5B 64 91 88 7F 23 
+59 A0 66 EA 10 54 84 E7 D2 7E 3C 00 00 00 00 00 00 00 00 DA B9 06 E5 B3 5F 58 F4 79 7A D2 ED D0 
+DC 68 95 AF 85 15 E7 F2 45 63 B3 93 EF 89 96 C6 AB BC C2 B9 FA A2 2B 3B E2 9A 0B A3 93 B0 CA FA 
+54 65 D1 95 9D 70 DD AD D1 44 58 65 7D A8 B4 28 DB A4 7F 8A B2 28 83 A1 D2 A2 DF 55 D9 14 0C C9 
+EA 0A 86 4A 8B E4 CF 12 51 5E D3 67 9E 63 D9 14 8C 89 EA 9A 3E 73 C9 9F 15 A2 BA A6 CF 5C F2 A7 
+15 F9 73 97 A3 72 A9 3E 32 74 F6 B6 88 BB 53 9D 61 E1 DD B2 BD B7 45 DC 9D EA 0C 0B EF 96 ED 7D 
+33 9A 3F 7E 3B 2B 62 58 A5 F8 28 25 F9 8F 3C 92 AF 3F 19 3D 98 87 91 54 B9 2E F9 D3 46 BD 2E F9 
+D3 45 50 97 FC 69 22 A9 4B FE 34 21 7F CE 15 D5 25 7F 7A 90 3F 07 93 3F 07 93 3F 07 93 3F 07 93 
+3F 07 DB 3C 7F AF BA 33 93 FC 39 99 FC 39 D8 E6 F9 FB CA 1B 53 C9 9F 93 ED 9D BF 4F DC 32 D7 DE 
+F9 57 5F 45 83 A2 AD F3 1F 3B 5E FA D7 E1 31 FF 55 F7 FF E4 FF F1 78 D1 3F 06 68 ED 07 31 8D 18 
+3D 1A 0E 2E 64 00 00 00 00 49 45 4E 44 AE 42 60 82 
+EndData
+$EndBitmap
+$EndSCHEMATC

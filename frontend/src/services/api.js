@@ -92,7 +92,17 @@ export const procurementAPI = {
 export const reportAPI = {
     exportInventory: () => api.get('/reports/inventory-export', { responseType: 'blob' }),
     exportConsumption: (params) => api.get('/reports/consumption-export', { params, responseType: 'blob' }),
-    getTransactionHistory: (componentId) => api.get(`/reports/transaction-history/${componentId}`)
+    getTransactionHistory: (componentId) => api.get(`/reports/transaction-history/${componentId}`),
+    exportBOM: (pcbId, buildQty) => api.get(`/reports/bom-export/${pcbId}`, { params: { buildQty }, responseType: 'blob' }),
+    exportShortageReport: (pcbId, buildQty) => api.get(`/reports/shortage-report/${pcbId}`, { params: { buildQty }, responseType: 'blob' }),
+    exportProcurementList: (pcbId, buildQty) => api.get(`/reports/procurement-list/${pcbId}`, { params: { buildQty }, responseType: 'blob' })
+};
+
+// Missing Components Detection
+export const missingComponentsAPI = {
+    reconcile: (bomComponents, buildQty) => api.post('/missing-components/reconcile', { bomComponents, buildQty }),
+    exportReport: (reconciliation, analytics) => api.post('/missing-components/export-report', { reconciliation, analytics }, { responseType: 'blob' }),
+    addToInventory: (missingComponents) => api.post('/missing-components/add-to-inventory', { missingComponents })
 };
 
 export default api;

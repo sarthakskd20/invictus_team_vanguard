@@ -29,10 +29,10 @@ const fileFilter = (req, file, cb) => {
     ];
 
     if (allowedMimes.includes(file.mimetype) ||
-        file.originalname.match(/\.(xlsx|xls|csv|pdf|json|kicad_sch|sch|SchDoc)$/i)) {
+        file.originalname.match(/\.(xlsx|xls|csv|pdf|json|kicad_sch|kicad_pcb|sch|SchDoc|PcbDoc|BomDoc|gbr|net|asc|brd|xml|cvg|tgz)$/i)) {
         cb(null, true);
     } else {
-        cb(new Error('Invalid file type. Allowed: Excel, CSV, PDF, KiCad, Eagle, Altium'), false);
+        cb(new Error('Invalid file type. Allowed: Excel, CSV, PDF, KiCad, Eagle, Altium, Gerber, OrCAD, IPC-2581, ODB++'), false);
     }
 };
 

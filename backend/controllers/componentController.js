@@ -83,21 +83,28 @@ const createComponent = async (req, res, next) => {
     }
 };
 
-// PUT update component
+// PUT update component (Transaction-safe with row-level locking)
 const updateComponent = async (req, res, next) => {
+    const client = await pool.connect();
     try {
         const { component_name, part_number, current_stock, monthly_required_quantity, unit_price, description, manufacturer, footprint, category } = req.body;
         const componentId = req.params.id;
 
-        // Get current stock for audit trail
-        const current = await pool.query('SELECT current_stock FROM components WHERE component_id = $1', [componentId]);
+        await client.query('BEGIN');
+
+        // Lock the component row to prevent concurrent modifications
+        const current = await client.query(
+            'SELECT current_stock FROM components WHERE component_id = $1 FOR UPDATE',
+            [componentId]
+        );
         if (current.rows.length === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Component not found.' });
         }
 
         const oldStock = current.rows[0].current_stock;
 
-        const result = await pool.query(
+        const result = await client.query(
             `UPDATE components SET
         component_name = COALESCE($1, component_name),
         part_number = COALESCE($2, part_number),
@@ -116,16 +123,28 @@ const updateComponent = async (req, res, next) => {
 
         // Log stock adjustment if stock changed
         if (current_stock !== undefined && current_stock !== oldStock) {
-            await pool.query(
+            await client.query(
                 `INSERT INTO component_transactions (component_id, transaction_type, quantity_changed, balance_before, balance_after, reference_note)
          VALUES ($1, 'ADJUSTMENT', $2, $3, $4, 'Manual stock adjustment')`,
                 [componentId, current_stock - oldStock, oldStock, current_stock]
             );
         }
 
+        await client.query('COMMIT');
         res.json(result.rows[0]);
     } catch (err) {
+        await client.query('ROLLBACK');
+
+        // Handle check constraint violation (negative stock)
+        if (err.code === '23514') {
+            return res.status(400).json({
+                error: 'Stock constraint violation',
+                message: 'Cannot set stock to a negative value.'
+            });
+        }
         next(err);
+    } finally {
+        client.release();
     }
 };
 
@@ -389,6 +408,7 @@ const importSchematic = async (req, res, next) => {
                         manufacturer: item.manufacturer || '',
                         footprint: item.footprint || '',
                         description: item.description || '',
+                        quantity: item.quantity || 1,
                         status: 'existing',
                         current_db_data: curr,
                         monthly_required_quantity: 0
@@ -397,10 +417,11 @@ const importSchematic = async (req, res, next) => {
                     previewComponents.push({
                         part_number: partNumber,
                         component_name: compName,
-                        category: 'Uncategorized',
+                        category: item.category || 'Uncategorized',
                         manufacturer: item.manufacturer || '',
                         footprint: item.footprint || '',
                         description: item.description || '',
+                        quantity: item.quantity || 1,
                         status: 'new',
                         current_db_data: null,
                         monthly_required_quantity: 0
@@ -436,6 +457,13 @@ const batchUpsertComponents = async (req, res, next) => {
     try {
         await client.query('BEGIN');
 
+        // Check which enterprise columns exist (in case migration hasn't run)
+        const colCheck = await client.query(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'components' AND column_name IN ('mounting_type', 'tolerance', 'voltage_rating', 'supplier', 'location')"
+        );
+        const existingCols = new Set(colCheck.rows.map(r => r.column_name));
+        const hasEnterprise = existingCols.has('mounting_type');
+
         for (const comp of components) {
             const existing = await client.query('SELECT component_id FROM components WHERE part_number = $1', [comp.part_number]);
 
@@ -443,24 +471,57 @@ const batchUpsertComponents = async (req, res, next) => {
             const category = comp.category || 'Uncategorized';
 
             if (existing.rows.length > 0) {
-                await client.query(
-                    `UPDATE components SET
-                    component_name = COALESCE(NULLIF($1, 'N/A'), component_name),
-                    description = COALESCE(NULLIF($2, 'N/A'), description),
-                    footprint = COALESCE(NULLIF($3, 'N/A'), footprint),
-                    manufacturer = COALESCE(NULLIF($4, 'N/A'), manufacturer),
-                    category = COALESCE(NULLIF($6, 'Uncategorized'), category),
-                    updated_at = CURRENT_TIMESTAMP
-                    WHERE part_number = $5`,
-                    [comp.component_name, comp.description, comp.footprint, comp.manufacturer, comp.part_number, category]
-                );
+                const importQty = parseInt(comp.quantity) || 0;
+                if (hasEnterprise) {
+                    await client.query(
+                        `UPDATE components SET
+                        component_name = COALESCE(NULLIF($1, 'N/A'), component_name),
+                        description = COALESCE(NULLIF($2, 'N/A'), description),
+                        footprint = COALESCE(NULLIF($3, 'N/A'), footprint),
+                        manufacturer = COALESCE(NULLIF($4, 'N/A'), manufacturer),
+                        category = COALESCE(NULLIF($6, 'Uncategorized'), category),
+                        mounting_type = COALESCE($7, mounting_type),
+                        tolerance = COALESCE($8, tolerance),
+                        voltage_rating = COALESCE($9, voltage_rating),
+                        supplier = COALESCE($10, supplier),
+                        location = COALESCE($11, location),
+                        current_stock = current_stock + $12,
+                        updated_at = CURRENT_TIMESTAMP
+                        WHERE part_number = $5`,
+                        [comp.component_name, comp.description, comp.footprint, comp.manufacturer, comp.part_number, category,
+                        comp.mounting_type || null, comp.tolerance || null, comp.voltage_rating || null, comp.supplier || null, comp.location || null, importQty]
+                    );
+                } else {
+                    await client.query(
+                        `UPDATE components SET
+                        component_name = COALESCE(NULLIF($1, 'N/A'), component_name),
+                        description = COALESCE(NULLIF($2, 'N/A'), description),
+                        footprint = COALESCE(NULLIF($3, 'N/A'), footprint),
+                        manufacturer = COALESCE(NULLIF($4, 'N/A'), manufacturer),
+                        category = COALESCE(NULLIF($6, 'Uncategorized'), category),
+                        current_stock = current_stock + $7,
+                        updated_at = CURRENT_TIMESTAMP
+                        WHERE part_number = $5`,
+                        [comp.component_name, comp.description, comp.footprint, comp.manufacturer, comp.part_number, category, importQty]
+                    );
+                }
                 updated++;
             } else {
-                await client.query(
-                    `INSERT INTO components (component_name, part_number, current_stock, unit_price, description, manufacturer, footprint, category, monthly_required_quantity)
-                    VALUES ($1, $2, 0, 0, $3, $4, $5, $6, $7)`,
-                    [comp.component_name, comp.part_number, comp.description, comp.manufacturer, comp.footprint, category, comp.monthly_required_quantity || 0]
-                );
+                const importQty = parseInt(comp.quantity) || 0;
+                if (hasEnterprise) {
+                    await client.query(
+                        `INSERT INTO components (component_name, part_number, current_stock, unit_price, description, manufacturer, footprint, category, monthly_required_quantity, mounting_type, tolerance, voltage_rating, supplier, location)
+                        VALUES ($1, $2, $3, 0, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+                        [comp.component_name, comp.part_number, importQty, comp.description, comp.manufacturer, comp.footprint, category, comp.monthly_required_quantity || 0,
+                        comp.mounting_type || null, comp.tolerance || null, comp.voltage_rating || null, comp.supplier || null, comp.location || null]
+                    );
+                } else {
+                    await client.query(
+                        `INSERT INTO components (component_name, part_number, current_stock, unit_price, description, manufacturer, footprint, category, monthly_required_quantity)
+                        VALUES ($1, $2, $3, 0, $4, $5, $6, $7, $8)`,
+                        [comp.component_name, comp.part_number, importQty, comp.description, comp.manufacturer, comp.footprint, category, comp.monthly_required_quantity || 0]
+                    );
+                }
                 added++;
             }
         }
@@ -479,6 +540,8 @@ const batchUpsertComponents = async (req, res, next) => {
         client.release();
     }
 };
+
+
 
 module.exports = {
     getAllComponents,

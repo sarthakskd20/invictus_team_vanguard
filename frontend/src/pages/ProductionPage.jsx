@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { productionAPI, pcbAPI } from '../services/api';
-import { Factory, AlertTriangle, CheckCircle, X, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { productionAPI, pcbAPI, reportAPI } from '../services/api';
+import { Factory, AlertTriangle, CheckCircle, X, Clock, ChevronDown, ChevronUp, Lock, Download } from 'lucide-react';
 
 export default function ProductionPage() {
     const [pcbs, setPcbs] = useState([]);
@@ -15,6 +15,8 @@ export default function ProductionPage() {
     const [result, setResult] = useState(null);
     const [expandedEntry, setExpandedEntry] = useState(null);
     const [entryDetail, setEntryDetail] = useState(null);
+    const [shortageDetails, setShortageDetails] = useState(null);
+    const [concurrencyNote, setConcurrencyNote] = useState('');
 
     useEffect(() => { loadData(); }, []);
 
@@ -48,6 +50,8 @@ export default function ProductionPage() {
 
         setError('');
         setResult(null);
+        setShortageDetails(null);
+        setConcurrencyNote('');
         setSubmitting(true);
 
         try {
@@ -63,7 +67,23 @@ export default function ProductionPage() {
             setBomPreview([]);
             loadData();
         } catch (err) {
-            setError(err.response?.data?.error || 'Production entry failed.');
+            const data = err.response?.data;
+            setError(data?.error || 'Production entry failed.');
+
+            // Show structured shortage details if available
+            if (data?.shortages && data.shortages.length > 0) {
+                setShortageDetails(data.shortages);
+            }
+
+            // Show concurrency context note
+            if (data?.concurrency_note) {
+                setConcurrencyNote(data.concurrency_note);
+            }
+
+            // Auto-refresh BOM preview so user sees updated stock values
+            if (selectedPcb) {
+                loadBomPreview(selectedPcb);
+            }
         } finally {
             setSubmitting(false);
         }
@@ -83,6 +103,46 @@ export default function ProductionPage() {
         return item.current_stock >= needed;
     };
 
+    // Download helper
+    const downloadBlob = (blob, filename) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    };
+
+    const handleExportBOM = async () => {
+        try {
+            const res = await reportAPI.exportBOM(selectedPcb, quantity);
+            downloadBlob(new Blob([res.data]), `BOM_x${quantity}.xlsx`);
+        } catch (err) { setError('Failed to export BOM.'); }
+    };
+
+    const handleExportShortage = async () => {
+        try {
+            const res = await reportAPI.exportShortageReport(selectedPcb, quantity);
+            downloadBlob(new Blob([res.data]), `Shortage_x${quantity}.xlsx`);
+        } catch (err) { setError('Failed to export shortage report.'); }
+    };
+
+    const handleExportProcurement = async () => {
+        try {
+            const res = await reportAPI.exportProcurementList(selectedPcb, quantity);
+            downloadBlob(new Blob([res.data]), `Procurement_x${quantity}.xlsx`);
+        } catch (err) { setError('Failed to export procurement list.'); }
+    };
+
+    // Compute impact summary
+    const impactData = bomPreview.map(item => {
+        const needed = item.quantity_per_unit * quantity;
+        const afterBuild = item.current_stock - needed;
+        return { ...item, needed, afterBuild, sufficient: afterBuild >= 0 };
+    });
+    const shortageCount = impactData.filter(d => !d.sufficient).length;
+    const sufficientCount = impactData.filter(d => d.sufficient).length;
+
     if (loading) return <div className="page-loading"><div className="loading-spinner" /></div>;
 
     return (
@@ -94,7 +154,43 @@ export default function ProductionPage() {
                 </div>
             </div>
 
-            {error && <div className="alert alert--error">{error} <button onClick={() => setError('')}><X size={14} /></button></div>}
+            {error && (
+                <div className="alert alert--error">
+                    <div style={{ flex: 1 }}>
+                        <p>{error}</p>
+                        {concurrencyNote && (
+                            <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', opacity: 0.85, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <Lock size={12} /> {concurrencyNote}
+                            </p>
+                        )}
+                    </div>
+                    <button onClick={() => { setError(''); setShortageDetails(null); setConcurrencyNote(''); }}><X size={14} /></button>
+                </div>
+            )}
+
+            {shortageDetails && shortageDetails.length > 0 && (
+                <div className="card" style={{ marginBottom: '1rem', borderLeft: '3px solid var(--clr-error, #ef4444)' }}>
+                    <h4 style={{ margin: '0 0 0.75rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <AlertTriangle size={16} /> Component Shortage Details
+                    </h4>
+                    <table className="data-table data-table--compact">
+                        <thead>
+                            <tr><th>Component</th><th>Part #</th><th>Required</th><th>Available</th><th>Deficit</th></tr>
+                        </thead>
+                        <tbody>
+                            {shortageDetails.map((s, i) => (
+                                <tr key={i}>
+                                    <td>{s.component}</td>
+                                    <td className="td--mono">{s.part_number}</td>
+                                    <td>{s.needed.toLocaleString()}</td>
+                                    <td>{s.available.toLocaleString()}</td>
+                                    <td style={{ color: 'var(--clr-error, #ef4444)', fontWeight: 600 }}>-{s.shortage.toLocaleString()}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
             {result && (
                 <div className={`alert ${result.warnings ? 'alert--warning' : 'alert--success'}`}>
@@ -135,32 +231,61 @@ export default function ProductionPage() {
 
                         {bomPreview.length > 0 && (
                             <div className="bom-preview">
-                                <h4>Required Components (x{quantity})</h4>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                    <h4 style={{ margin: 0 }}>Inventory Impact Preview (x{quantity})</h4>
+                                    <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.8rem' }}>
+                                        <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'var(--clr-success-bg, #dcfce7)', color: 'var(--clr-success, #16a34a)' }}>
+                                            ✓ {sufficientCount} OK
+                                        </span>
+                                        {shortageCount > 0 && (
+                                            <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'var(--clr-error-bg, #fef2f2)', color: 'var(--clr-error, #ef4444)' }}>
+                                                ✗ {shortageCount} Short
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                                 <table className="data-table data-table--compact">
                                     <thead>
-                                        <tr><th>Component</th><th>Needed</th><th>Available</th><th>Status</th></tr>
+                                        <tr><th>Component</th><th>Part #</th><th>Needed</th><th>Available</th><th>After Build</th><th>Status</th></tr>
                                     </thead>
                                     <tbody>
-                                        {bomPreview.map((item, i) => {
-                                            const needed = item.quantity_per_unit * quantity;
-                                            const ok = checkStockSufficiency(item);
-                                            return (
-                                                <tr key={i}>
-                                                    <td>{item.component_name}</td>
-                                                    <td>{needed.toLocaleString()}</td>
-                                                    <td>{item.current_stock.toLocaleString()}</td>
-                                                    <td>
-                                                        {ok ? (
-                                                            <span className="stock-badge stock-badge--normal"><CheckCircle size={12} /> OK</span>
-                                                        ) : (
-                                                            <span className="stock-badge stock-badge--critical"><AlertTriangle size={12} /> Short {needed - item.current_stock}</span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
+                                        {impactData.map((item, i) => (
+                                            <tr key={i} style={!item.sufficient ? { background: 'var(--clr-error-bg, #fef2f2)' } : {}}>
+                                                <td>{item.component_name}</td>
+                                                <td className="td--mono">{item.part_number}</td>
+                                                <td>{item.needed.toLocaleString()}</td>
+                                                <td>{item.current_stock.toLocaleString()}</td>
+                                                <td style={{ fontWeight: 600, color: item.afterBuild < 0 ? 'var(--clr-error, #ef4444)' : 'var(--clr-success, #16a34a)' }}>
+                                                    {item.afterBuild.toLocaleString()}
+                                                </td>
+                                                <td>
+                                                    {item.sufficient ? (
+                                                        <span className="stock-badge stock-badge--normal"><CheckCircle size={12} /> OK</span>
+                                                    ) : (
+                                                        <span className="stock-badge stock-badge--critical"><AlertTriangle size={12} /> Short {Math.abs(item.afterBuild)}</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
+
+                                {/* Export Buttons */}
+                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                                    <button type="button" className="btn btn--outline" onClick={handleExportBOM} style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}>
+                                        <Download size={13} /> Export BOM
+                                    </button>
+                                    {shortageCount > 0 && (
+                                        <>
+                                            <button type="button" className="btn btn--outline" onClick={handleExportShortage} style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', borderColor: 'var(--clr-error, #ef4444)', color: 'var(--clr-error, #ef4444)' }}>
+                                                <Download size={13} /> Shortage Report
+                                            </button>
+                                            <button type="button" className="btn btn--outline" onClick={handleExportProcurement} style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', borderColor: 'var(--clr-primary, #3b82f6)', color: 'var(--clr-primary, #3b82f6)' }}>
+                                                <Download size={13} /> Procurement List
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         )}
 

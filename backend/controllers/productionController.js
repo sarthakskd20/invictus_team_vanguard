@@ -69,7 +69,9 @@ const createProductionEntry = async (req, res, next) => {
             ).join('; ');
             return res.status(400).json({
                 error: `Insufficient stock for ${shortages.length} component(s). ${shortageDetails}`,
-                shortages
+                shortages,
+                concurrency_note: 'Stock was verified with row-level locking. If another user recently produced PCBs, stock values shown reflect the latest state after their transaction completed.',
+                timestamp: new Date().toISOString()
             });
         }
 
@@ -138,10 +140,23 @@ const createProductionEntry = async (req, res, next) => {
             procurement_triggers: triggeredProcurements,
             warnings: triggeredProcurements.length > 0
                 ? `${triggeredProcurements.length} component(s) fell below 20% threshold.`
-                : null
+                : null,
+            concurrency_info: 'Transaction completed with row-level locking. All stock values are guaranteed accurate.',
+            timestamp: new Date().toISOString()
         });
     } catch (err) {
         await client.query('ROLLBACK');
+
+        // Handle PostgreSQL check constraint violation (negative stock safety net)
+        if (err.code === '23514') {
+            return res.status(400).json({
+                error: 'Stock constraint violation',
+                message: 'Cannot deduct more stock than available. Another transaction may have modified stock concurrently.',
+                concurrency_note: 'This is an extra safety net. The database CHECK constraint prevented negative inventory.',
+                timestamp: new Date().toISOString()
+            });
+        }
+
         next(err);
     } finally {
         client.release();

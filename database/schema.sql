@@ -26,6 +26,13 @@ CREATE TABLE IF NOT EXISTS components (
     manufacturer VARCHAR(255),
     footprint VARCHAR(255),
     category VARCHAR(100),
+    mounting_type VARCHAR(10),
+    tolerance VARCHAR(50),
+    voltage_rating VARCHAR(50),
+    min_threshold INTEGER DEFAULT 0,
+    location VARCHAR(100),
+    supplier VARCHAR(200),
+    lead_time_days INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -46,6 +53,9 @@ CREATE TABLE IF NOT EXISTS pcb_components_mapping (
     pcb_id INTEGER NOT NULL REFERENCES pcb_types(pcb_id) ON DELETE CASCADE,
     component_id INTEGER NOT NULL REFERENCES components(component_id) ON DELETE RESTRICT,
     quantity_per_unit INTEGER NOT NULL CHECK (quantity_per_unit > 0),
+    designators TEXT,
+    dni BOOLEAN DEFAULT false,
+    variant VARCHAR(50) DEFAULT 'default',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(pcb_id, component_id)
 );
@@ -92,6 +102,8 @@ CREATE TABLE IF NOT EXISTS procurement_triggers (
 -- INDEXES for Performance
 CREATE INDEX IF NOT EXISTS idx_components_part_number ON components(part_number);
 CREATE INDEX IF NOT EXISTS idx_components_category ON components(category);
+CREATE INDEX IF NOT EXISTS idx_components_supplier ON components(supplier);
+CREATE INDEX IF NOT EXISTS idx_components_mounting ON components(mounting_type);
 CREATE INDEX IF NOT EXISTS idx_production_date ON production_entries(production_date);
 CREATE INDEX IF NOT EXISTS idx_production_pcb ON production_entries(pcb_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_component ON component_transactions(component_id);
@@ -101,3 +113,5 @@ CREATE INDEX IF NOT EXISTS idx_procurement_status ON procurement_triggers(status
 CREATE INDEX IF NOT EXISTS idx_procurement_component ON procurement_triggers(component_id);
 CREATE INDEX IF NOT EXISTS idx_pcb_mapping_pcb ON pcb_components_mapping(pcb_id);
 CREATE INDEX IF NOT EXISTS idx_pcb_mapping_component ON pcb_components_mapping(component_id);
+CREATE INDEX IF NOT EXISTS idx_bom_variant ON pcb_components_mapping(variant);
+
