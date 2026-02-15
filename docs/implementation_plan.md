@@ -142,6 +142,13 @@ Build a transaction-safe, component-level inventory management system for Electr
   - `reports/`: Export interfaces and transaction history viewer.
 
 ### Phase 4: Stylize (Refinement)
+- [COMPLETED] **Loader Component**:
+  - Integrate custom `Loader` component (SVG animation).
+  - Implement `PageLoader` wrapper with 2-3s artificial delay.
+  - Apply before Login and Dashboard entry.
+- [COMPLETED] **Animated Sidebar**:
+  - Integrate Aceternity UI sidebar with `framer-motion`.
+  - Replace static sidebar with collapsible, animated navigation.
 - Apply "Industrial" styling (clean, high contrast, dense data).
 - Implement actionable error messages (e.g., "Insufficient stock: Capacitor C101 needs 500, only 300 available").
 - Dashboards with `react-chartjs-2`.
