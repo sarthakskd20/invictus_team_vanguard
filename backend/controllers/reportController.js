@@ -57,11 +57,11 @@ const exportConsumption = async (req, res, next) => {
 
         if (start_date) {
             params.push(start_date);
-            query += ` AND ct.created_at >= $${params.length}`;
+            query += ` AND ct.created_at::date >= $${params.length}`;
         }
         if (end_date) {
             params.push(end_date);
-            query += ` AND ct.created_at <= $${params.length}`;
+            query += ` AND ct.created_at::date <= $${params.length}`;
         }
 
         query += ' ORDER BY ct.created_at DESC';

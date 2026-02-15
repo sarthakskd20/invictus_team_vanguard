@@ -4,6 +4,7 @@ const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const { parseExcel } = require('../utils/sheetParser');
 
 // GET all components
 const getAllComponents = async (req, res, next) => {
@@ -176,35 +177,19 @@ const importComponents = async (req, res, next) => {
                     .on('error', reject);
             });
         } else if (ext === '.xlsx' || ext === '.xls') {
-            const workbook = new ExcelJS.Workbook();
-            await workbook.xlsx.readFile(filepath);
-            const sheet = workbook.getWorksheet(1);
+            try {
+                components = await parseExcel(filepath);
 
-            const headerRow = sheet.getRow(1);
-            const headers = [];
-            headerRow.eachCell((cell) => {
-                headers.push(String(cell.value || '').trim());
-            });
+                // Validate parsed components
+                components = components.filter(c => c.part_number || c.component_name);
 
-            sheet.eachRow((row, rowNumber) => {
-                if (rowNumber === 1) return;
-                const rowData = {};
-                row.eachCell((cell, colNumber) => {
-                    rowData[headers[colNumber - 1]] = cell.value;
-                });
-
-                components.push({
-                    component_name: rowData['Component Name'] || rowData['Name'] || '',
-                    part_number: rowData['Part Number'] || rowData['MPN'] || '',
-                    current_stock: parseInt(rowData['Current Stock'] || rowData['Stock'] || rowData['Quantity'] || '0') || 0,
-                    monthly_required_quantity: parseInt(rowData['Monthly Required'] || '0') || 0,
-                    unit_price: parseFloat(rowData['Unit Price'] || rowData['Price'] || '0') || 0,
-                    description: rowData['Description'] || '',
-                    manufacturer: rowData['Manufacturer'] || '',
-                    footprint: rowData['Footprint'] || '',
-                    category: rowData['Category'] || ''
-                });
-            });
+                if (components.length === 0) {
+                    // Fallback check or just proceed (will result in 0 imported)
+                    console.log("No components found in Excel import");
+                }
+            } catch (parseErr) {
+                return res.status(400).json({ error: 'Failed to parse Excel file: ' + parseErr.message });
+            }
         } else {
             return res.status(400).json({ error: 'Unsupported file type. Use CSV or Excel (.xlsx).' });
         }
