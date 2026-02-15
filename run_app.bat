@@ -84,29 +84,23 @@ echo.
 
 echo    Backend dependencies...
 cd /d "%~dp0backend"
-if not exist node_modules (
-    call npm install
-    if %errorlevel% neq 0 (
-        echo  [ERROR] Backend npm install failed.
-        pause
-        exit /b 1
-    )
-) else (
-    echo    Backend dependencies already installed. Skipping.
+echo    (Ensuring dependencies are up to date...)
+call npm install --no-audit --no-fund --quiet
+if %errorlevel% neq 0 (
+    echo  [ERROR] Backend npm install failed.
+    pause
+    exit /b 1
 )
 
 echo.
 echo    Frontend dependencies...
 cd /d "%~dp0frontend"
-if not exist node_modules (
-    call npm install
-    if %errorlevel% neq 0 (
-        echo  [ERROR] Frontend npm install failed.
-        pause
-        exit /b 1
-    )
-) else (
-    echo    Frontend dependencies already installed. Skipping.
+echo    (Ensuring dependencies are up to date...)
+call npm install --no-audit --no-fund --quiet
+if %errorlevel% neq 0 (
+    echo  [ERROR] Frontend npm install failed.
+    pause
+    exit /b 1
 )
 
 echo.
