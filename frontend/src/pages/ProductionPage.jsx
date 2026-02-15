@@ -179,12 +179,12 @@ export default function ProductionPage() {
                         </thead>
                         <tbody>
                             {shortageDetails.map((s, i) => (
-                                <tr key={i}>
+                                <tr key={i} style={{ color: 'var(--color-danger, #ef4444)' }}>
                                     <td>{s.component}</td>
-                                    <td className="td--mono">{s.part_number}</td>
+                                    <td className="td--mono" style={{ color: 'inherit' }}>{s.part_number}</td>
                                     <td>{s.needed.toLocaleString()}</td>
                                     <td>{s.available.toLocaleString()}</td>
-                                    <td style={{ color: 'var(--clr-error, #ef4444)', fontWeight: 600 }}>-{s.shortage.toLocaleString()}</td>
+                                    <td style={{ fontWeight: 600 }}>-{s.shortage.toLocaleString()}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -222,7 +222,17 @@ export default function ProductionPage() {
                         </div>
                         <div className="form-group">
                             <label htmlFor="qty">Quantity to Produce</label>
-                            <input id="qty" type="number" min="1" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 1)} required />
+                            <input
+                                id="qty"
+                                type="number"
+                                min="1"
+                                value={quantity}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    setQuantity(val === '' ? '' : parseInt(val));
+                                }}
+                                required
+                            />
                         </div>
                         <div className="form-group">
                             <label htmlFor="prod_notes">Notes (optional)</label>
@@ -250,12 +260,12 @@ export default function ProductionPage() {
                                     </thead>
                                     <tbody>
                                         {impactData.map((item, i) => (
-                                            <tr key={i} style={!item.sufficient ? { background: 'var(--clr-error-bg, #fef2f2)' } : {}}>
+                                            <tr key={i} style={!item.sufficient ? { background: 'var(--color-danger-dim, rgba(239, 68, 68, 0.12))', color: 'var(--color-danger, #ef4444)' } : {}}>
                                                 <td>{item.component_name}</td>
-                                                <td className="td--mono">{item.part_number}</td>
+                                                <td className="td--mono" style={!item.sufficient ? { color: 'inherit' } : {}}>{item.part_number}</td>
                                                 <td>{item.needed.toLocaleString()}</td>
                                                 <td>{item.current_stock.toLocaleString()}</td>
-                                                <td style={{ fontWeight: 600, color: item.afterBuild < 0 ? 'var(--clr-error, #ef4444)' : 'var(--clr-success, #16a34a)' }}>
+                                                <td style={{ fontWeight: 600, color: item.afterBuild < 0 ? 'var(--color-danger, #ef4444)' : 'var(--color-success, #22c55e)' }}>
                                                     {item.afterBuild.toLocaleString()}
                                                 </td>
                                                 <td>

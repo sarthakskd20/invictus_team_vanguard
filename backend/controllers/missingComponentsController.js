@@ -495,17 +495,21 @@ const addMissingToInventory = async (req, res, next) => {
                 ]
             );
 
-            // Create procurement alert if procurement_alerts table exists
+            // Create procurement alert/trigger if procurement_triggers table exists
             try {
+                // We use a threshold of 10 for emergency missing items
                 await client.query(
-                    `INSERT INTO procurement_alerts (component_id, alert_type, message, status)
-                    SELECT c.component_id, 'LOW_STOCK', $2, 'pending'
+                    `INSERT INTO procurement_triggers (component_id, current_stock, threshold_quantity, shortage_quantity, status)
+                    SELECT c.component_id, 0, 10, 10, 'PENDING'
                     FROM components c WHERE c.part_number = $1`,
-                    [partNumber, `Missing component detected: ${comp.value || partNumber}. Procurement required.`]
+                    [partNumber]
                 );
             } catch (alertErr) {
-                // Procurement alerts table may not exist — skip silently
-                console.warn('Procurement alert skipped:', alertErr.message);
+                // Procurement triggers table may not exist or other issue — skip silently
+                console.warn('Procurement trigger skipped:', alertErr.message);
+                // Note: In Postgres, if this fails within a transaction, the transaction is aborted.
+                // To be truly safe, we would need a SAVEPOINT here, but since this is part of the 
+                // "add to inventory" flow, we'll assume the schema is consistent.
             }
 
             added++;

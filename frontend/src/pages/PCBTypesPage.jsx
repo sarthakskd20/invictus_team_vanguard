@@ -87,7 +87,7 @@ export default function PCBTypesPage() {
 
     const updateBomRow = (index, field, value) => {
         const newBom = [...formData.bom];
-        newBom[index] = { ...newBom[index], [field]: field === 'quantity_per_unit' ? parseInt(value) || 1 : value };
+        newBom[index] = { ...newBom[index], [field]: field === 'quantity_per_unit' ? (value === '' ? '' : parseInt(value)) : value };
         setFormData({ ...formData, bom: newBom });
     };
 

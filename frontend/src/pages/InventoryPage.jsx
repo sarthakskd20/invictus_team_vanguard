@@ -382,15 +382,15 @@ export default function InventoryPage() {
                             <div className="form-row">
                                 <div className="form-group">
                                     <label htmlFor="stock">Current Stock</label>
-                                    <input id="stock" type="number" min="0" value={formData.current_stock} onChange={e => setFormData({ ...formData, current_stock: parseInt(e.target.value) || 0 })} />
+                                    <input id="stock" type="number" min="0" value={formData.current_stock} onChange={e => setFormData({ ...formData, current_stock: e.target.value === '' ? '' : parseInt(e.target.value) })} />
                                 </div>
                                 <div className="form-group">
                                     <label htmlFor="monthly">Monthly Required</label>
-                                    <input id="monthly" type="number" min="0" value={formData.monthly_required_quantity} onChange={e => setFormData({ ...formData, monthly_required_quantity: parseInt(e.target.value) || 0 })} />
+                                    <input id="monthly" type="number" min="0" value={formData.monthly_required_quantity} onChange={e => setFormData({ ...formData, monthly_required_quantity: e.target.value === '' ? '' : parseInt(e.target.value) })} />
                                 </div>
                                 <div className="form-group">
                                     <label htmlFor="price">Unit Price ($)</label>
-                                    <input id="price" type="number" min="0" step="0.01" value={formData.unit_price} onChange={e => setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })} />
+                                    <input id="price" type="number" min="0" step="0.01" value={formData.unit_price} onChange={e => setFormData({ ...formData, unit_price: e.target.value === '' ? '' : parseFloat(e.target.value) })} />
                                 </div>
                             </div>
                             <div className="form-row">
