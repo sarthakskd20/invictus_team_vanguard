@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { reportAPI, componentAPI } from '../services/api';
 import { Download, FileBarChart, History, X } from 'lucide-react';
+import { GlowingEffect } from '../components/ui/glowing-effect';
 
 export default function ReportsPage() {
     const [components, setComponents] = useState([]);
@@ -82,6 +83,7 @@ export default function ReportsPage() {
 
             <div className="reports-grid">
                 <div className="card">
+                    <GlowingEffect spread={40} glow disabled={false} proximity={64} inactiveZone={0.01} borderWidth={2} />
                     <h3 className="card__title"><Download size={16} /> Export Inventory Snapshot</h3>
                     <p className="card__desc">Download the current inventory state as an Excel file including stock health percentages.</p>
                     <button className="btn btn--primary" onClick={handleExportInventory}>
@@ -90,6 +92,7 @@ export default function ReportsPage() {
                 </div>
 
                 <div className="card">
+                    <GlowingEffect spread={40} glow disabled={false} proximity={64} inactiveZone={0.01} borderWidth={2} />
                     <h3 className="card__title"><Download size={16} /> Export Consumption Report</h3>
                     <p className="card__desc">Download stock deductions filtered by date range.</p>
                     <div className="form-row">
@@ -109,6 +112,7 @@ export default function ReportsPage() {
             </div>
 
             <div className="card" style={{ marginTop: '1.5rem' }}>
+                <GlowingEffect spread={40} glow disabled={false} proximity={64} inactiveZone={0.01} borderWidth={2} />
                 <h3 className="card__title"><History size={16} /> Component Transaction History</h3>
                 <div className="form-group" style={{ maxWidth: '400px', marginBottom: '1rem' }}>
                     <label htmlFor="comp_select">Select Component</label>

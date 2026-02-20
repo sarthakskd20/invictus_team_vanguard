@@ -5,6 +5,7 @@ import {
     Package, CircuitBoard, AlertTriangle, DollarSign,
     Factory, ShoppingCart, TrendingDown, BarChart3
 } from 'lucide-react';
+import { GlowingEffect } from '../components/ui/glowing-effect';
 import {
     Chart as ChartJS, CategoryScale, LinearScale, BarElement,
     Title, Tooltip, Legend, ArcElement, PointElement, LineElement, Filler
@@ -118,6 +119,10 @@ export default function DashboardPage() {
             <div className="stats-grid">
                 {statCards.map((card, i) => (
                     <div key={i} className="stat-card">
+                        <GlowingEffect
+                            spread={40} glow disabled={false}
+                            proximity={64} inactiveZone={0.01} borderWidth={2}
+                        />
                         <div className="stat-card__icon" style={{ color: card.color, background: `${card.color}15` }}>
                             <card.icon size={20} />
                         </div>
@@ -131,6 +136,10 @@ export default function DashboardPage() {
 
             <div className="dashboard-grid">
                 <div className="card chart-card">
+                    <GlowingEffect
+                        spread={40} glow disabled={false}
+                        proximity={64} inactiveZone={0.01} borderWidth={2}
+                    />
                     <h3 className="card__title">
                         <TrendingDown size={16} /> Consumption Trend (14 Days)
                     </h3>
@@ -144,6 +153,10 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="card chart-card">
+                    <GlowingEffect
+                        spread={40} glow disabled={false}
+                        proximity={64} inactiveZone={0.01} borderWidth={2}
+                    />
                     <h3 className="card__title">
                         <BarChart3 size={16} /> Production by PCB (30 Days)
                     </h3>
@@ -157,6 +170,10 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="card chart-card chart-card--small">
+                    <GlowingEffect
+                        spread={40} glow disabled={false}
+                        proximity={64} inactiveZone={0.01} borderWidth={2}
+                    />
                     <h3 className="card__title">Stock by Category</h3>
                     <div className="chart-container chart-container--doughnut">
                         {categoryData.length > 0 ? (
@@ -168,6 +185,10 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="card">
+                    <GlowingEffect
+                        spread={40} glow disabled={false}
+                        proximity={64} inactiveZone={0.01} borderWidth={2}
+                    />
                     <h3 className="card__title">
                         <AlertTriangle size={16} /> Low Stock Alerts
                     </h3>

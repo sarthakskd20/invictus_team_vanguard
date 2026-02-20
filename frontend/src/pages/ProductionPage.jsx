@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { productionAPI, pcbAPI, reportAPI } from '../services/api';
 import { Factory, AlertTriangle, CheckCircle, X, Clock, ChevronDown, ChevronUp, Lock, Download } from 'lucide-react';
+import { GlowingEffect } from '../components/ui/glowing-effect';
 
 export default function ProductionPage() {
     const [pcbs, setPcbs] = useState([]);
@@ -167,6 +168,7 @@ export default function ProductionPage() {
 
             {shortageDetails && shortageDetails.length > 0 && (
                 <div className="card" style={{ marginBottom: '1rem', borderLeft: '3px solid var(--clr-error, #ef4444)' }}>
+                    <GlowingEffect spread={40} glow disabled={false} proximity={64} inactiveZone={0.01} borderWidth={2} />
                     <h4 style={{ margin: '0 0 0.75rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <AlertTriangle size={16} /> Component Shortage Details
                     </h4>
@@ -208,6 +210,7 @@ export default function ProductionPage() {
 
             <div className="production-layout">
                 <div className="card production-form-card">
+                    <GlowingEffect spread={40} glow disabled={false} proximity={64} inactiveZone={0.01} borderWidth={2} />
                     <h3 className="card__title"><Factory size={16} /> New Production Entry</h3>
                     <form onSubmit={handleSubmit}>
                         <div className="form-group">
@@ -303,6 +306,7 @@ export default function ProductionPage() {
                 </div>
 
                 <div className="card">
+                    <GlowingEffect spread={40} glow disabled={false} proximity={64} inactiveZone={0.01} borderWidth={2} />
                     <h3 className="card__title"><Clock size={16} /> Recent Production History</h3>
                     {history.length > 0 ? (
                         <div className="production-history">

@@ -86,8 +86,10 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-bg);
+  background: #000;
   padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
 }
 
 .login-card {
@@ -527,6 +529,7 @@ a {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   transition: border-color var(--transition);
+  position: relative;
 }
 
 .stat-card:hover {
@@ -562,6 +565,7 @@ a {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 24px;
+  position: relative;
 }
 
 .card__title {
@@ -1099,4 +1103,39 @@ a {
   .page__header {
     flex-direction: column;
   }
+}
+
+/* ===== GLOWING BORDER EFFECT ===== */
+.glow-border {
+  border-radius: inherit;
+  position: absolute;
+  inset: 0;
+}
+
+.glow-border::after {
+  content: "";
+  border-radius: inherit;
+  position: absolute;
+  inset: calc(-1 * var(--glowingeffect-border-width, 1px));
+  border: var(--glowingeffect-border-width, 1px) solid transparent;
+  background: var(--gradient);
+  background-attachment: fixed;
+  opacity: var(--active, 0);
+  transition: opacity 300ms ease;
+  -webkit-mask-clip: padding-box, border-box;
+  mask-clip: padding-box, border-box;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  -webkit-mask-image:
+    linear-gradient(#0000, #0000),
+    conic-gradient(from calc((var(--start, 0) - var(--spread, 20)) * 1deg),
+      #00000000 0deg,
+      #fff,
+      #00000000 calc(var(--spread, 20) * 2deg));
+  mask-image:
+    linear-gradient(#0000, #0000),
+    conic-gradient(from calc((var(--start, 0) - var(--spread, 20)) * 1deg),
+      #00000000 0deg,
+      #fff,
+      #00000000 calc(var(--spread, 20) * 2deg));
 }
