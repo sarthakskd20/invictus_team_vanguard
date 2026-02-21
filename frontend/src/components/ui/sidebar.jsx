@@ -66,7 +66,7 @@ export const DesktopSidebar = ({ children, style, ...props }) => {
                 flexDirection: "column",
                 flexShrink: 0,
                 background: "var(--color-surface)",
-                borderRight: "1px solid var(--color-border)",
+                borderRight: "1px solid rgba(139, 124, 246, 0.08)",
                 overflow: "hidden",
                 ...style,
             }}
@@ -141,6 +141,10 @@ export const MobileSidebar = ({ children }) => {
 export const SidebarLink = ({ link, onClick, style: extraStyle }) => {
     const { open, animate } = useSidebar();
 
+    // Detect active route
+    const isActive = typeof window !== 'undefined' &&
+        (link.href === '/' ? window.location.pathname === '/' : window.location.pathname.startsWith(link.href));
+
     return (
         <Link
             to={link.href}
@@ -149,27 +153,41 @@ export const SidebarLink = ({ link, onClick, style: extraStyle }) => {
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
-                padding: "10px 12px",
-                borderRadius: 8,
-                color: "var(--color-text-secondary)",
+                padding: "11px 14px",
+                borderRadius: 12,
+                color: isActive ? "var(--color-primary)" : "var(--color-text-secondary)",
                 textDecoration: "none",
-                fontSize: "0.875rem",
-                fontWeight: 450,
-                transition: "background 150ms ease, color 150ms ease",
+                fontSize: "0.9rem",
+                fontWeight: isActive ? 550 : 450,
+                letterSpacing: "0.01em",
+                transition: "all 250ms cubic-bezier(0.22, 1, 0.36, 1)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
+                background: isActive ? "rgba(139, 124, 246, 0.1)" : "transparent",
+                borderLeft: isActive ? "3px solid var(--color-primary)" : "3px solid transparent",
+                position: "relative",
                 ...extraStyle,
             }}
             onMouseEnter={e => {
-                e.currentTarget.style.background = "var(--color-surface-raised)";
-                e.currentTarget.style.color = "var(--color-text)";
+                if (!isActive) {
+                    e.currentTarget.style.background = "rgba(139, 124, 246, 0.06)";
+                    e.currentTarget.style.color = "var(--color-text)";
+                    e.currentTarget.style.transform = "translateX(2px)";
+                }
             }}
             onMouseLeave={e => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "var(--color-text-secondary)";
+                if (!isActive) {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = "var(--color-text-secondary)";
+                    e.currentTarget.style.transform = "translateX(0)";
+                }
             }}
         >
-            <span style={{ flexShrink: 0, display: "flex" }}>{link.icon}</span>
+            <span style={{
+                flexShrink: 0,
+                display: "flex",
+                transition: "transform 200ms ease",
+            }}>{link.icon}</span>
             <motion.span
                 animate={{
                     display: animate ? (open ? "inline-block" : "none") : "inline-block",

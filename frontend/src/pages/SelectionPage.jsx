@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { CardStack } from '../components/ui/card-stack';
-import { BackgroundPaths } from '../components/ui/background-paths';
+import { GLSLHills } from '../components/ui/glsl-hills';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 
@@ -65,9 +65,9 @@ export default function SelectionPage() {
 
     return (
         <>
-            {/* ── Background paths animation ─────────────────────── */}
-            <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
-                <BackgroundPaths />
+            {/* ── GLSL Hills animated background ─────────────────────── */}
+            <div style={{ position: 'fixed', inset: 0, zIndex: 0, background: '#0a0a0a' }}>
+                <GLSLHills />
             </div>
 
             {/* ── Fixed full-viewport layout — NO scroll ─────────────── */}
@@ -97,7 +97,7 @@ export default function SelectionPage() {
                         Where would you like to go?
                     </h1>
                     <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.32)', marginTop: 6 }}>
-                        Browse with arrows · click to select · click active card to enter
+                        Use arrows to browse · press Enter to select
                     </p>
                 </motion.div>
 
@@ -144,19 +144,20 @@ export default function SelectionPage() {
                         onClick={() => navigate(activeItem.href)}
                         style={{
                             display: 'inline-flex', alignItems: 'center', gap: 10,
-                            padding: '11px 28px', borderRadius: '50px', border: 'none',
-                            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                            padding: '12px 30px', borderRadius: '50px', border: 'none',
+                            background: 'linear-gradient(135deg, #8b7cf6, #a78bfa)',
                             color: '#fff', fontSize: '0.88rem', fontWeight: 600,
-                            cursor: 'pointer', boxShadow: '0 8px 24px rgba(59,130,246,0.28)',
-                            transition: 'transform 0.15s, box-shadow 0.15s',
+                            cursor: 'pointer', boxShadow: '0 8px 24px rgba(139,124,246,0.28)',
+                            transition: 'all 250ms cubic-bezier(0.22, 1, 0.36, 1)',
+                            letterSpacing: '0.01em',
                         }}
                         onMouseEnter={(e) => {
                             e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 14px 32px rgba(59,130,246,0.42)';
+                            e.currentTarget.style.boxShadow = '0 14px 32px rgba(139,124,246,0.42)';
                         }}
                         onMouseLeave={(e) => {
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 8px 24px rgba(59,130,246,0.28)';
+                            e.currentTarget.style.boxShadow = '0 8px 24px rgba(139,124,246,0.28)';
                         }}
                     >
                         Open {activeItem.title}
